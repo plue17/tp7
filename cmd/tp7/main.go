@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"syscall"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"tp7/internal/config"
 	"tp7/internal/importer"
 	"tp7/internal/storage"
@@ -47,20 +49,30 @@ func main() {
 		}
 	}
 
+	entriesCh := make(chan []importer.Entry, 1)
+
 	svc := &importer.Service{
-		VendorID:  cfg.MTPDevice.VendorID,
-		ProductID: cfg.MTPDevice.ProductID,
-		Debug:     *debug,
-		Library:   lib,
+		VendorID:     cfg.MTPDevice.VendorID,
+		ProductID:    cfg.MTPDevice.ProductID,
+		Debug:        *debug,
+		Library:      lib,
+		RecordingsCh: entriesCh,
 	}
 
-	svc.Start()
-	fmt.Println("service started, press Ctrl+C to stop")
+	p := tea.NewProgram(newRootModel(lib, entriesCh), tea.WithAltScreen())
 
+	// Forward OS signals to the bubbletea program so Ctrl+C / SIGTERM quit cleanly.
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	<-sig
+	go func() {
+		<-sig
+		p.Quit()
+	}()
 
-	fmt.Println("shutting down...")
+	svc.Start()
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 	svc.Stop()
 }

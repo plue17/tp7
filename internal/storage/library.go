@@ -76,6 +76,22 @@ func (l *Library) Topics() ([]*Topic, error) {
 	return topics, nil
 }
 
+// TopicFiles returns the names of all files inside the given topic's directory.
+func (l *Library) TopicFiles(topicName string) ([]string, error) {
+	dir := filepath.Join(l.Path, topicName)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("reading topic %q: %w", topicName, err)
+	}
+	var files []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			files = append(files, e.Name())
+		}
+	}
+	return files, nil
+}
+
 // markFilePath returns the path to the YAML mark file for the given voice memo filename.
 func (l *Library) markFilePath(filename string) string {
 	return filepath.Join(l.Path, markedDir, filename+".yaml")

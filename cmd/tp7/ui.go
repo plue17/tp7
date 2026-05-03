@@ -1,0 +1,492 @@
+package main
+
+import (
+	"fmt"
+	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
+	"tp7/internal/importer"
+	"tp7/internal/storage"
+)
+
+// ── styles ────────────────────────────────────────────────────────────────────
+
+var (
+	styleTitle     = lipgloss.NewStyle().Bold(true)
+	styleSelected  = lipgloss.NewStyle().Reverse(true)
+	styleDim       = lipgloss.NewStyle().Faint(true)
+	styleTab       = lipgloss.NewStyle().Padding(0, 1)
+	styleActiveTab = lipgloss.NewStyle().Padding(0, 1).Bold(true).Underline(true)
+	styleDialog    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)
+	styleDialogErr = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
+)
+
+// ── tabs ──────────────────────────────────────────────────────────────────────
+
+type tab int
+
+const (
+	tabLibrary tab = iota
+	tabImport
+)
+
+// ── messages ──────────────────────────────────────────────────────────────────
+
+type entriesMsg []importer.Entry
+
+type loadTopicsMsg struct {
+	names []string
+	err   error
+}
+
+type loadFilesMsg struct {
+	topicName string
+	files     []string
+	err       error
+}
+
+type createTopicMsg struct {
+	name string
+	err  error
+}
+
+// ── new-topic dialog ─────────────────────────────────────────────────────────
+
+type newTopicDialog struct {
+	active bool
+	input  string
+	errMsg string
+}
+
+func createTopicCmd(lib *storage.Library, name string) tea.Cmd {
+	return func() tea.Msg {
+		_, err := lib.CreateTopic(name)
+		return createTopicMsg{name: name, err: err}
+	}
+}
+
+// ── commands ──────────────────────────────────────────────────────────────────
+
+func loadTopicsCmd(lib *storage.Library) tea.Cmd {
+	return func() tea.Msg {
+		topics, err := lib.Topics()
+		if err != nil {
+			return loadTopicsMsg{err: err}
+		}
+		names := make([]string, len(topics))
+		for i, t := range topics {
+			names[i] = t.Name
+		}
+		return loadTopicsMsg{names: names}
+	}
+}
+
+func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
+	return func() tea.Msg {
+		files, err := lib.TopicFiles(topicName)
+		return loadFilesMsg{topicName: topicName, files: files, err: err}
+	}
+}
+
+// ── library model (F1) ────────────────────────────────────────────────────────
+
+type topicNode struct {
+	name     string
+	expanded bool
+	files    []string
+	loaded   bool
+}
+
+// flatRow is a single visible line in the library tree.
+type flatRow struct {
+	isTopic  bool
+	topicIdx int
+	fileIdx  int // only meaningful when !isTopic
+}
+
+type libraryModel struct {
+	lib    *storage.Library
+	topics []topicNode
+	cursor int
+	height int
+	width  int
+	status string
+	dialog newTopicDialog
+}
+
+func newLibraryModel(lib *storage.Library) libraryModel {
+	return libraryModel{lib: lib, status: "Library wird geladen…"}
+}
+
+func (m libraryModel) Init() tea.Cmd {
+	if m.lib == nil {
+		return nil
+	}
+	return loadTopicsCmd(m.lib)
+}
+
+func (m libraryModel) buildRows() []flatRow {
+	var rows []flatRow
+	for i, t := range m.topics {
+		rows = append(rows, flatRow{isTopic: true, topicIdx: i})
+		if t.expanded {
+			for j := range t.files {
+				rows = append(rows, flatRow{isTopic: false, topicIdx: i, fileIdx: j})
+			}
+		}
+	}
+	return rows
+}
+
+func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.height = msg.Height
+		m.width = msg.Width
+
+	case loadTopicsMsg:
+		if msg.err != nil {
+			m.status = fmt.Sprintf("Fehler: %v", msg.err)
+			return m, nil
+		}
+		m.topics = make([]topicNode, len(msg.names))
+		for i, n := range msg.names {
+			m.topics[i] = topicNode{name: n}
+		}
+		if len(m.topics) == 0 {
+			m.status = "Keine Topics vorhanden"
+		} else {
+			m.status = fmt.Sprintf("%d Topic(s)", len(m.topics))
+		}
+		m.cursor = 0
+
+	case loadFilesMsg:
+		if msg.err != nil {
+			m.status = fmt.Sprintf("Fehler: %v", msg.err)
+			return m, nil
+		}
+		for i := range m.topics {
+			if m.topics[i].name == msg.topicName {
+				m.topics[i].files = msg.files
+				m.topics[i].loaded = true
+				break
+			}
+		}
+
+	case createTopicMsg:
+		if msg.err != nil {
+			m.dialog.errMsg = fmt.Sprintf("Fehler: %v", msg.err)
+			return m, nil
+		}
+		m.dialog = newTopicDialog{} // close
+		return m, loadTopicsCmd(m.lib)
+
+	case tea.KeyMsg:
+		// ── dialog mode ──
+		if m.dialog.active {
+			switch msg.String() {
+			case "esc":
+				m.dialog = newTopicDialog{}
+			case "enter":
+				name := strings.TrimSpace(m.dialog.input)
+				if name == "" {
+					m.dialog.errMsg = "Name darf nicht leer sein"
+					return m, nil
+				}
+				m.dialog.errMsg = ""
+				return m, createTopicCmd(m.lib, name)
+			case "backspace", "ctrl+h":
+				if len(m.dialog.input) > 0 {
+					runes := []rune(m.dialog.input)
+					m.dialog.input = string(runes[:len(runes)-1])
+				}
+			default:
+				if r := msg.Runes; len(r) > 0 {
+					m.dialog.input += string(r)
+				}
+			}
+			return m, nil
+		}
+
+		// ── normal mode ──
+		rows := m.buildRows()
+		switch msg.String() {
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down", "j":
+			if m.cursor < len(rows)-1 {
+				m.cursor++
+			}
+		case "enter", " ":
+			if m.cursor < len(rows) {
+				row := rows[m.cursor]
+				if row.isTopic {
+					t := &m.topics[row.topicIdx]
+					t.expanded = !t.expanded
+					if t.expanded && !t.loaded {
+						return m, loadFilesCmd(m.lib, t.name)
+					}
+				}
+			}
+		case "n":
+			if m.lib != nil {
+				m.dialog = newTopicDialog{active: true}
+			}
+		case "r":
+			return m, loadTopicsCmd(m.lib)
+		}
+	}
+	return m, nil
+}
+
+func (m libraryModel) view() string {
+	if m.lib == nil {
+		return styleDim.Render("Keine Library konfiguriert.") + "\n"
+	}
+	rows := m.buildRows()
+	listHeight := m.height - 1
+	if listHeight < 1 {
+		listHeight = 1
+	}
+	start := m.cursor - listHeight/2
+	if start < 0 {
+		start = 0
+	}
+	if start+listHeight > len(rows) {
+		start = max(0, len(rows)-listHeight)
+	}
+	var out string
+	for i := start; i < start+listHeight && i < len(rows); i++ {
+		row := rows[i]
+		var line string
+		if row.isTopic {
+			t := m.topics[row.topicIdx]
+			arrow := "▶"
+			if t.expanded {
+				arrow = "▼"
+			}
+			line = fmt.Sprintf("%s %s", arrow, t.name)
+		} else {
+			f := m.topics[row.topicIdx].files[row.fileIdx]
+			line = fmt.Sprintf("  └ %s", f)
+		}
+		if i == m.cursor {
+			out += styleSelected.Render(line) + "\n"
+		} else if !row.isTopic {
+			out += styleDim.Render(line) + "\n"
+		} else {
+			out += line + "\n"
+		}
+	}
+	if m.dialog.active {
+		out += m.renderDialog()
+	}
+	return out
+}
+
+func (m libraryModel) renderDialog() string {
+	prompt := "Neues Topic: " + m.dialog.input + "█"
+	var body string
+	if m.dialog.errMsg != "" {
+		body = prompt + "\n" + styleDialogErr.Render(m.dialog.errMsg)
+	} else {
+		body = prompt + "\n" + styleDim.Render("Enter bestätigen • Esc abbrechen")
+	}
+	return "\n" + styleDialog.Render(body) + "\n"
+}
+
+// ── import model (F2) ─────────────────────────────────────────────────────────
+
+type importModel struct {
+	entries   []importer.Entry
+	cursor    int
+	height    int
+	width     int
+	status    string
+	entriesCh <-chan []importer.Entry
+}
+
+func newImportModel(ch <-chan []importer.Entry) importModel {
+	return importModel{entriesCh: ch, status: "Warte auf TP-7…"}
+}
+
+func (m importModel) Init() tea.Cmd {
+	return m.awaitEntries()
+}
+
+func (m importModel) awaitEntries() tea.Cmd {
+	ch := m.entriesCh
+	return func() tea.Msg { return entriesMsg(<-ch) }
+}
+
+func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.height = msg.Height
+		m.width = msg.Width
+	case entriesMsg:
+		m.entries = []importer.Entry(msg)
+		if m.cursor >= len(m.entries) {
+			m.cursor = max(0, len(m.entries)-1)
+		}
+		m.status = fmt.Sprintf("%d neue Aufnahme(n)", len(m.entries))
+		return m, m.awaitEntries()
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down", "j":
+			if m.cursor < len(m.entries)-1 {
+				m.cursor++
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m importModel) view() string {
+	listHeight := m.height - 1
+	if listHeight < 1 {
+		listHeight = 1
+	}
+	start := m.cursor - listHeight/2
+	if start < 0 {
+		start = 0
+	}
+	if start+listHeight > len(m.entries) {
+		start = max(0, len(m.entries)-listHeight)
+	}
+	var out string
+	for i := start; i < start+listHeight && i < len(m.entries); i++ {
+		e := m.entries[i]
+		line := fmt.Sprintf("%-38s  %8s", e.Name, formatSize(e.Size))
+		if i == m.cursor {
+			out += styleSelected.Render(line) + "\n"
+		} else {
+			out += line + "\n"
+		}
+	}
+	return out
+}
+
+// ── root model ────────────────────────────────────────────────────────────────
+
+type rootModel struct {
+	active  tab
+	library libraryModel
+	imports importModel
+	height  int
+	width   int
+}
+
+func newRootModel(lib *storage.Library, ch <-chan []importer.Entry) rootModel {
+	return rootModel{
+		active:  tabLibrary,
+		library: newLibraryModel(lib),
+		imports: newImportModel(ch),
+	}
+}
+
+func (m rootModel) Init() tea.Cmd {
+	return tea.Batch(m.library.Init(), m.imports.Init())
+}
+
+func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.height = msg.Height
+		m.width = msg.Width
+		inner := tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - 3}
+		lib, c1 := m.library.update(inner)
+		imp, c2 := m.imports.update(inner)
+		m.library = lib
+		m.imports = imp
+		return m, tea.Batch(c1, c2)
+
+	case tea.KeyMsg:
+		// While a dialog is open, forward everything to the library tab.
+		if m.active == tabLibrary && m.library.dialog.active {
+			lib, cmd := m.library.update(msg)
+			m.library = lib
+			return m, cmd
+		}
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		case "f1":
+			m.active = tabLibrary
+			return m, nil
+		case "f2":
+			m.active = tabImport
+			return m, nil
+		}
+		// route key to the active tab only
+		switch m.active {
+		case tabLibrary:
+			lib, cmd := m.library.update(msg)
+			m.library = lib
+			return m, cmd
+		case tabImport:
+			imp, cmd := m.imports.update(msg)
+			m.imports = imp
+			return m, cmd
+		}
+	}
+	// data messages (async loads, entries) reach both sub-models
+	lib, c1 := m.library.update(msg)
+	imp, c2 := m.imports.update(msg)
+	m.library = lib
+	m.imports = imp
+	return m, tea.Batch(c1, c2)
+}
+
+func (m rootModel) View() string {
+	libTab := styleTab.Render("F1 Library")
+	impTab := styleTab.Render("F2 Import")
+	switch m.active {
+	case tabLibrary:
+		libTab = styleActiveTab.Render("F1 Library")
+	case tabImport:
+		impTab = styleActiveTab.Render("F2 Import")
+	}
+	var status string
+	switch m.active {
+	case tabLibrary:
+		status = m.library.status
+	case tabImport:
+		status = m.imports.status
+	}
+	tabBar := libTab + "  " + impTab + "  " + styleDim.Render(status)
+
+	var content string
+	switch m.active {
+	case tabLibrary:
+		content = m.library.view()
+	case tabImport:
+		content = m.imports.view()
+	}
+
+	footer := styleDim.Render("F1/F2 Tab wechseln • ↑/↓ scrollen • Enter aufklappen • n neues Topic • r neu laden • q beenden")
+	return tabBar + "\n\n" + content + "\n" + footer
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+func formatSize(b int64) string {
+	switch {
+	case b >= 1<<30:
+		return fmt.Sprintf("%.1f GB", float64(b)/float64(1<<30))
+	case b >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(b)/float64(1<<20))
+	case b >= 1<<10:
+		return fmt.Sprintf("%.1f KB", float64(b)/float64(1<<10))
+	default:
+		return fmt.Sprintf("%d B", b)
+	}
+}

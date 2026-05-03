@@ -35,6 +35,10 @@ type Service struct {
 	// May be nil, in which case all recordings are shown.
 	Library *storage.Library
 
+	// RecordingsCh, if non-nil, receives the filtered list of new recordings
+	// each time the device connects. Sends are non-blocking; use a buffered channel.
+	RecordingsCh chan<- []Entry
+
 	cancel context.CancelFunc
 	done   chan struct{}
 }
@@ -125,6 +129,12 @@ func (s *Service) run(ctx context.Context, interval time.Duration) {
 					slog.Info("importer: recordings found", "total", len(entries), "new", len(new))
 					for _, e := range new {
 						slog.Debug("importer: new recording", "name", e.Name, "size", e.Size)
+					}
+					if s.RecordingsCh != nil {
+						select {
+						case s.RecordingsCh <- new:
+						default:
+						}
 					}
 				}
 
