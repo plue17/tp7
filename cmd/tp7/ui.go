@@ -30,6 +30,7 @@ type tab int
 const (
 	tabLibrary tab = iota
 	tabImport
+	tabIgnored
 )
 
 // ── messages ──────────────────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ type createTopicMsg struct {
 
 type importActionDoneMsg struct {
 	entryName string
+	topicName string // non-empty when action was a copy
 	err       error
 }
 
@@ -61,6 +63,11 @@ type importTopicsLoadedMsg struct {
 	entry  importer.Entry
 	topics []string
 	err    error
+}
+
+type loadIgnoredMsg struct {
+	names []string
+	err   error
 }
 
 // ── new-topic dialog ─────────────────────────────────────────────────────────
@@ -102,7 +109,14 @@ func ignoreEntryCmd(lib *storage.Library, entry importer.Entry) tea.Cmd {
 func copyEntryCmd(lib *storage.Library, entry importer.Entry, topicName string) tea.Cmd {
 	return func() tea.Msg {
 		err := lib.CopyToTopic(topicName, entry.Path)
-		return importActionDoneMsg{entryName: entry.Name, err: err}
+		return importActionDoneMsg{entryName: entry.Name, topicName: topicName, err: err}
+	}
+}
+
+func loadIgnoredCmd(lib *storage.Library) tea.Cmd {
+	return func() tea.Msg {
+		names, err := lib.ListIgnored()
+		return loadIgnoredMsg{names: names, err: err}
 	}
 }
 
@@ -190,16 +204,36 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			m.status = fmt.Sprintf("Fehler: %v", msg.err)
 			return m, nil
 		}
+		// preserve expanded/files state and cursor position across reloads
+		existing := make(map[string]topicNode, len(m.topics))
+		for _, t := range m.topics {
+			existing[t.name] = t
+		}
+		var cursorName string
+		if m.cursor < len(m.topics) {
+			cursorName = m.topics[m.cursor].name
+		}
 		m.topics = make([]topicNode, len(msg.names))
 		for i, n := range msg.names {
-			m.topics[i] = topicNode{name: n}
+			if prev, ok := existing[n]; ok {
+				m.topics[i] = prev
+			} else {
+				m.topics[i] = topicNode{name: n}
+			}
+		}
+		// restore cursor to same topic name if possible
+		m.cursor = 0
+		for i, t := range m.topics {
+			if t.name == cursorName {
+				m.cursor = i
+				break
+			}
 		}
 		if len(m.topics) == 0 {
 			m.status = "Keine Topics vorhanden"
 		} else {
 			m.status = fmt.Sprintf("%d Topic(s)", len(m.topics))
 		}
-		m.cursor = 0
 
 	case loadFilesMsg:
 		if msg.err != nil {
@@ -213,6 +247,24 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 				break
 			}
 		}
+
+	case importActionDoneMsg:
+		if msg.topicName == "" {
+			return m, nil // ignore action was not a copy
+		}
+		var cmds []tea.Cmd
+		for i := range m.topics {
+			if m.topics[i].name == msg.topicName {
+				if m.topics[i].expanded {
+					cmds = append(cmds, loadFilesCmd(m.lib, msg.topicName))
+				} else {
+					// mark stale so next expand fetches fresh list
+					m.topics[i].loaded = false
+				}
+				break
+			}
+		}
+		return m, tea.Batch(cmds...)
 
 	case createTopicMsg:
 		if msg.err != nil {
@@ -547,12 +599,98 @@ func (m importModel) renderDialog() string {
 	return "\n" + styleDialog.Render(body) + "\n"
 }
 
+// ── ignored model (F3) ───────────────────────────────────────────────────────
+
+type ignoredModel struct {
+	lib    *storage.Library
+	names  []string
+	cursor int
+	height int
+	width  int
+	status string
+}
+
+func newIgnoredModel(lib *storage.Library) ignoredModel {
+	return ignoredModel{lib: lib, status: "Ignorierte Dateien werden geladen…"}
+}
+
+func (m ignoredModel) Init() tea.Cmd {
+	if m.lib == nil {
+		return nil
+	}
+	return loadIgnoredCmd(m.lib)
+}
+
+func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.height = msg.Height
+		m.width = msg.Width
+	case loadIgnoredMsg:
+		if msg.err != nil {
+			m.status = fmt.Sprintf("Fehler: %v", msg.err)
+			return m, nil
+		}
+		m.names = msg.names
+		if len(m.names) == 0 {
+			m.status = "Keine ignorierten Dateien"
+		} else {
+			m.status = fmt.Sprintf("%d ignoriert", len(m.names))
+		}
+		if m.cursor >= len(m.names) {
+			m.cursor = max(0, len(m.names)-1)
+		}
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down", "j":
+			if m.cursor < len(m.names)-1 {
+				m.cursor++
+			}
+		case "r":
+			return m, loadIgnoredCmd(m.lib)
+		}
+	}
+	return m, nil
+}
+
+func (m ignoredModel) view() string {
+	if m.lib == nil {
+		return styleDim.Render("Keine Library konfiguriert.") + "\n"
+	}
+	listHeight := m.height - 1
+	if listHeight < 1 {
+		listHeight = 1
+	}
+	start := m.cursor - listHeight/2
+	if start < 0 {
+		start = 0
+	}
+	if start+listHeight > len(m.names) {
+		start = max(0, len(m.names)-listHeight)
+	}
+	var out string
+	for i := start; i < start+listHeight && i < len(m.names); i++ {
+		line := m.names[i]
+		if i == m.cursor {
+			out += styleSelected.Render(line) + "\n"
+		} else {
+			out += line + "\n"
+		}
+	}
+	return out
+}
+
 // ── root model ────────────────────────────────────────────────────────────────
 
 type rootModel struct {
 	active  tab
 	library libraryModel
 	imports importModel
+	ignored ignoredModel
 	height  int
 	width   int
 }
@@ -562,11 +700,12 @@ func newRootModel(lib *storage.Library, ch <-chan []importer.Entry) rootModel {
 		active:  tabLibrary,
 		library: newLibraryModel(lib),
 		imports: newImportModel(lib, ch),
+		ignored: newIgnoredModel(lib),
 	}
 }
 
 func (m rootModel) Init() tea.Cmd {
-	return tea.Batch(m.library.Init(), m.imports.Init())
+	return tea.Batch(m.library.Init(), m.imports.Init(), m.ignored.Init())
 }
 
 func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -577,9 +716,11 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		inner := tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - 3}
 		lib, c1 := m.library.update(inner)
 		imp, c2 := m.imports.update(inner)
+		ign, c3 := m.ignored.update(inner)
 		m.library = lib
 		m.imports = imp
-		return m, tea.Batch(c1, c2)
+		m.ignored = ign
+		return m, tea.Batch(c1, c2, c3)
 
 	case tea.KeyMsg:
 		// Forward everything to active tab when a dialog is open.
@@ -602,6 +743,9 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "f2":
 			m.active = tabImport
 			return m, nil
+		case "f3":
+			m.active = tabIgnored
+			return m, loadIgnoredCmd(m.ignored.lib)
 		}
 		// route key to the active tab only
 		switch m.active {
@@ -613,24 +757,33 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			imp, cmd := m.imports.update(msg)
 			m.imports = imp
 			return m, cmd
+		case tabIgnored:
+			ign, cmd := m.ignored.update(msg)
+			m.ignored = ign
+			return m, cmd
 		}
 	}
-	// data messages (async loads, entries) reach both sub-models
+	// data messages (async loads, entries) reach all sub-models
 	lib, c1 := m.library.update(msg)
 	imp, c2 := m.imports.update(msg)
+	ign, c3 := m.ignored.update(msg)
 	m.library = lib
 	m.imports = imp
-	return m, tea.Batch(c1, c2)
+	m.ignored = ign
+	return m, tea.Batch(c1, c2, c3)
 }
 
 func (m rootModel) View() string {
 	libTab := styleTab.Render("F1 Library")
 	impTab := styleTab.Render("F2 Import")
+	ignTab := styleTab.Render("F3 Ignoriert")
 	switch m.active {
 	case tabLibrary:
 		libTab = styleActiveTab.Render("F1 Library")
 	case tabImport:
 		impTab = styleActiveTab.Render("F2 Import")
+	case tabIgnored:
+		ignTab = styleActiveTab.Render("F3 Ignoriert")
 	}
 	var status string
 	switch m.active {
@@ -638,8 +791,10 @@ func (m rootModel) View() string {
 		status = m.library.status
 	case tabImport:
 		status = m.imports.status
+	case tabIgnored:
+		status = m.ignored.status
 	}
-	tabBar := libTab + "  " + impTab + "  " + styleDim.Render(status)
+	tabBar := libTab + "  " + impTab + "  " + ignTab + "  " + styleDim.Render(status)
 
 	var content string
 	switch m.active {
@@ -647,6 +802,8 @@ func (m rootModel) View() string {
 		content = m.library.view()
 	case tabImport:
 		content = m.imports.view()
+	case tabIgnored:
+		content = m.ignored.view()
 	}
 
 	var footerParts string
@@ -659,8 +816,10 @@ func (m rootModel) View() string {
 		} else {
 			footerParts = "↑/↓ scrollen • q beenden"
 		}
+	case tabIgnored:
+		footerParts = "↑/↓ scrollen • r neu laden • q beenden"
 	}
-	footer := styleDim.Render("F1/F2 Tab wechseln • " + footerParts)
+	footer := styleDim.Render("F1/F2/F3 Tab wechseln • " + footerParts)
 	return tabBar + "\n\n" + content + "\n" + footer
 }
 

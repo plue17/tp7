@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -169,4 +170,33 @@ func (l *Library) ReadMark(filename string) (*Mark, error) {
 		return nil, fmt.Errorf("parsing mark for %q: %w", filename, err)
 	}
 	return &m, nil
+}
+
+// ListIgnored returns the original filenames of all voice memo files that have
+// been marked with ActionIgnore.
+func (l *Library) ListIgnored() ([]string, error) {
+	entries, err := os.ReadDir(filepath.Join(l.Path, markedDir))
+	if err != nil {
+		return nil, fmt.Errorf("reading marks: %w", err)
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		// mark filenames are "<original>.yaml"
+		markName := e.Name()
+		if filepath.Ext(markName) != ".yaml" {
+			continue
+		}
+		original := strings.TrimSuffix(markName, ".yaml")
+		m, err := l.ReadMark(original)
+		if err != nil {
+			continue
+		}
+		if m.Action == ActionIgnore {
+			names = append(names, original)
+		}
+	}
+	return names, nil
 }
