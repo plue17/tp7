@@ -8,12 +8,11 @@ import (
 	"strings"
 )
 
-// Entry represents a file or directory entry on the device.
+// Entry represents a voice memo file on the device.
 type Entry struct {
-	Name  string
-	IsDir bool
-	Size  int64
-	Path  string // absolute path on the local filesystem
+	Name string
+	Size int64
+	Path string // absolute path on the local filesystem
 }
 
 // DeviceMount represents a gvfs-mounted MTP device accessible via the
@@ -45,26 +44,30 @@ func (d *DeviceMount) Exists() bool {
 	return false
 }
 
-// ListDir returns the entries of a directory relative to the mount root.
-// Use path="" or path="/" for the root.
-func (d *DeviceMount) ListDir(path string) ([]Entry, error) {
-	full := filepath.Join(d.MountPath, path)
+// recordingsPath is the path to the recordings directory within the mount.
+const recordingsPath = "TP-7 MTP Device/recordings"
+
+// ListRecordings returns all voice memo entries from the recordings directory.
+func (d *DeviceMount) ListRecordings() ([]Entry, error) {
+	full := filepath.Join(d.MountPath, recordingsPath)
 	des, err := os.ReadDir(full)
 	if err != nil {
-		return nil, fmt.Errorf("reading directory %q: %w", full, err)
+		return nil, fmt.Errorf("reading recordings directory: %w", err)
 	}
 
 	entries := make([]Entry, 0, len(des))
 	for _, de := range des {
+		if de.IsDir() {
+			continue
+		}
 		info, err := de.Info()
 		if err != nil {
 			continue
 		}
 		entries = append(entries, Entry{
-			Name:  de.Name(),
-			IsDir: de.IsDir(),
-			Size:  info.Size(),
-			Path:  filepath.Join(full, de.Name()),
+			Name: de.Name(),
+			Size: info.Size(),
+			Path: filepath.Join(full, de.Name()),
 		})
 	}
 	return entries, nil

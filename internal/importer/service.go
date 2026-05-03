@@ -90,13 +90,20 @@ func (s *Service) run(ctx context.Context, interval time.Duration) {
 				}
 				dev = found
 				state = StateConnected
-				slog.Info("importer: device mounted", "path", dev.MountPath)
+				slog.Debug("importer: device mounted", "path", dev.MountPath)
+				slog.Info("TP7 connected")
+				if entries, err := dev.ListRecordings(); err != nil {
+					slog.Warn("importer: could not list recordings", "err", err)
+				} else {
+					slog.Info("importer: recordings found", "count", len(entries))
+				}
 
 			case StateConnected:
 				exists := dev.Exists()
 				slog.Debug("importer: connection check", "path", dev.MountPath, "exists", exists)
 				if !exists {
-					slog.Info("importer: device unmounted", "path", dev.MountPath)
+					slog.Debug("importer: device unmounted", "path", dev.MountPath)
+					slog.Info("TP7 disconnected")
 					dev = nil
 					state = StateSearching
 				}
