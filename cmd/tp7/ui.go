@@ -392,6 +392,106 @@ func (m libraryModel) buildRows() []flatRow {
 	return rows
 }
 
+// refreshTopic refreshes the file list for a topic if expanded, or marks it stale otherwise.
+func (m libraryModel) refreshTopic(topicName string) (libraryModel, tea.Cmd) {
+	for i := range m.topics {
+		if m.topics[i].name == topicName {
+			if m.topics[i].expanded {
+				return m, loadFilesCmd(m.lib, topicName)
+			}
+			m.topics[i].loaded = false
+			break
+		}
+	}
+	return m, nil
+}
+
+func (m libraryModel) handleDialogKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.dialog = newTopicDialog{}
+	case "enter":
+		name := strings.TrimSpace(m.dialog.input)
+		if name == "" {
+			m.dialog.errMsg = "Name darf nicht leer sein"
+			return m, nil
+		}
+		m.dialog.errMsg = ""
+		return m, createTopicCmd(m.lib, name)
+	case "backspace", "ctrl+h":
+		if len(m.dialog.input) > 0 {
+			runes := []rune(m.dialog.input)
+			m.dialog.input = string(runes[:len(runes)-1])
+		}
+	default:
+		if r := msg.Runes; len(r) > 0 {
+			m.dialog.input += string(r)
+		}
+	}
+	return m, nil
+}
+
+func (m libraryModel) handleConfirmKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
+	switch msg.String() {
+	case "j", "enter":
+		m.confirm.errMsg = ""
+		switch m.confirm.mode {
+		case libConfirmDelete:
+			return m, removeFromTopicCmd(m.lib, m.confirm.topicName, m.confirm.fileName)
+		case libConfirmIgnore:
+			return m, ignoreInTopicCmd(m.lib, m.confirm.topicName, m.confirm.fileName)
+		}
+	case "n", "esc":
+		m.confirm = libConfirmDialog{}
+	}
+	return m, nil
+}
+
+func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
+	rows := m.buildRows()
+	switch msg.String() {
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	case "down", "j":
+		if m.cursor < len(rows)-1 {
+			m.cursor++
+		}
+	case "enter", " ":
+		if m.cursor < len(rows) {
+			row := rows[m.cursor]
+			if row.isTopic {
+				t := &m.topics[row.topicIdx]
+				t.expanded = !t.expanded
+				if t.expanded && !t.loaded {
+					return m, loadFilesCmd(m.lib, t.name)
+				}
+			}
+		}
+	case "n":
+		if m.lib != nil {
+			m.dialog = newTopicDialog{active: true}
+		}
+	case "r":
+		return m, loadTopicsCmd(m.lib)
+	case "i", "delete":
+		if m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
+			row := rows[m.cursor]
+			mode := libConfirmIgnore
+			if msg.String() == "delete" {
+				mode = libConfirmDelete
+			}
+			m.confirm = libConfirmDialog{
+				mode:      mode,
+				topicName: m.topics[row.topicIdx].name,
+				fileName:  m.topics[row.topicIdx].files[row.fileIdx],
+			}
+		}
+	}
+	return m, nil
+}
+
 func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -451,64 +551,25 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		if msg.topicName == "" {
 			return m, nil // ignore action was not a copy
 		}
-		var cmds []tea.Cmd
-		for i := range m.topics {
-			if m.topics[i].name == msg.topicName {
-				if m.topics[i].expanded {
-					cmds = append(cmds, loadFilesCmd(m.lib, msg.topicName))
-				} else {
-					// mark stale so next expand fetches fresh list
-					m.topics[i].loaded = false
-				}
-				break
-			}
-		}
-		return m, tea.Batch(cmds...)
+		return m.refreshTopic(msg.topicName)
 
 	case ignoredFileDoneMsg:
-		// F3 copied a file to a topic – refresh that topic in F1
 		if msg.topicName == "" || msg.err != nil {
 			return m, nil
 		}
-		for i := range m.topics {
-			if m.topics[i].name == msg.topicName {
-				if m.topics[i].expanded {
-					return m, loadFilesCmd(m.lib, msg.topicName)
-				}
-				m.topics[i].loaded = false
-				break
-			}
-		}
+		return m.refreshTopic(msg.topicName)
 
 	case batchImportDoneMsg:
-		// F2 batch copy – refresh the destination topic in F1
 		if msg.topicName == "" {
 			return m, nil
 		}
-		for i := range m.topics {
-			if m.topics[i].name == msg.topicName {
-				if m.topics[i].expanded {
-					return m, loadFilesCmd(m.lib, msg.topicName)
-				}
-				m.topics[i].loaded = false
-				break
-			}
-		}
+		return m.refreshTopic(msg.topicName)
 
 	case batchIgnoredDoneMsg:
-		// F3 batch copy – refresh the destination topic in F1
 		if msg.topicName == "" {
 			return m, nil
 		}
-		for i := range m.topics {
-			if m.topics[i].name == msg.topicName {
-				if m.topics[i].expanded {
-					return m, loadFilesCmd(m.lib, msg.topicName)
-				}
-				m.topics[i].loaded = false
-				break
-			}
-		}
+		return m.refreshTopic(msg.topicName)
 
 	case libFileDoneMsg:
 		if msg.err != nil {
@@ -516,15 +577,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			return m, nil
 		}
 		m.confirm = libConfirmDialog{}
-		for i := range m.topics {
-			if m.topics[i].name == msg.topicName {
-				if m.topics[i].expanded {
-					return m, loadFilesCmd(m.lib, msg.topicName)
-				}
-				m.topics[i].loaded = false
-				break
-			}
-		}
+		return m.refreshTopic(msg.topicName)
 
 	case createTopicMsg:
 		if msg.err != nil {
@@ -535,91 +588,13 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		return m, loadTopicsCmd(m.lib)
 
 	case tea.KeyMsg:
-		// ── dialog mode ──
 		if m.dialog.active {
-			switch msg.String() {
-			case "esc":
-				m.dialog = newTopicDialog{}
-			case "enter":
-				name := strings.TrimSpace(m.dialog.input)
-				if name == "" {
-					m.dialog.errMsg = "Name darf nicht leer sein"
-					return m, nil
-				}
-				m.dialog.errMsg = ""
-				return m, createTopicCmd(m.lib, name)
-			case "backspace", "ctrl+h":
-				if len(m.dialog.input) > 0 {
-					runes := []rune(m.dialog.input)
-					m.dialog.input = string(runes[:len(runes)-1])
-				}
-			default:
-				if r := msg.Runes; len(r) > 0 {
-					m.dialog.input += string(r)
-				}
-			}
-			return m, nil
+			return m.handleDialogKey(msg)
 		}
-
-		// ── confirm dialog mode ──
 		if m.confirm.mode != libConfirmNone {
-			switch msg.String() {
-			case "j", "enter":
-				m.confirm.errMsg = ""
-				switch m.confirm.mode {
-				case libConfirmDelete:
-					return m, removeFromTopicCmd(m.lib, m.confirm.topicName, m.confirm.fileName)
-				case libConfirmIgnore:
-					return m, ignoreInTopicCmd(m.lib, m.confirm.topicName, m.confirm.fileName)
-				}
-			case "n", "esc":
-				m.confirm = libConfirmDialog{}
-			}
-			return m, nil
+			return m.handleConfirmKey(msg)
 		}
-
-		// ── normal mode ──
-		rows := m.buildRows()
-		switch msg.String() {
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(rows)-1 {
-				m.cursor++
-			}
-		case "enter", " ":
-			if m.cursor < len(rows) {
-				row := rows[m.cursor]
-				if row.isTopic {
-					t := &m.topics[row.topicIdx]
-					t.expanded = !t.expanded
-					if t.expanded && !t.loaded {
-						return m, loadFilesCmd(m.lib, t.name)
-					}
-				}
-			}
-		case "n":
-			if m.lib != nil {
-				m.dialog = newTopicDialog{active: true}
-			}
-		case "r":
-			return m, loadTopicsCmd(m.lib)
-		case "i", "delete":
-			if m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
-				row := rows[m.cursor]
-				mode := libConfirmIgnore
-				if msg.String() == "delete" {
-					mode = libConfirmDelete
-				}
-				m.confirm = libConfirmDialog{
-					mode:      mode,
-					topicName: m.topics[row.topicIdx].name,
-					fileName:  m.topics[row.topicIdx].files[row.fileIdx],
-				}
-			}
-		}
+		return m.handleNormalKey(msg)
 	}
 	return m, nil
 }
@@ -764,11 +739,95 @@ func (m importModel) selectedEntries() []importer.Entry {
 	return entries
 }
 
+func (m importModel) handleIgnoreDialogKey(msg tea.KeyMsg) (importModel, tea.Cmd) {
+	switch msg.String() {
+	case "j", "enter":
+		m.dialog.errMsg = ""
+		if len(m.dialog.entries) == 1 {
+			return m, ignoreEntryCmd(m.lib, m.dialog.entries[0])
+		}
+		return m, batchIgnoreCmd(m.lib, m.dialog.entries)
+	case "n", "esc":
+		m.dialog = importDialog{}
+	}
+	return m, nil
+}
+
+func (m importModel) handleCopyDialogKey(msg tea.KeyMsg) (importModel, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.dialog.topicCursor > 0 {
+			m.dialog.topicCursor--
+		}
+	case "down", "j":
+		if m.dialog.topicCursor < len(m.dialog.topics)-1 {
+			m.dialog.topicCursor++
+		}
+	case "enter":
+		topic := m.dialog.topics[m.dialog.topicCursor]
+		m.dialog.errMsg = ""
+		if len(m.dialog.entries) == 1 {
+			return m, copyEntryCmd(m.lib, m.dialog.entries[0], topic)
+		}
+		return m, batchCopyCmd(m.lib, m.dialog.entries, topic)
+	case "esc":
+		m.dialog = importDialog{}
+	}
+	return m, nil
+}
+
+func (m importModel) handleNormalKey(msg tea.KeyMsg) (importModel, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.sel = nil
+		if m.cursor > 0 {
+			m.cursor--
+		}
+		m.anchor = m.cursor
+	case "down", "j":
+		m.sel = nil
+		if m.cursor < len(m.entries)-1 {
+			m.cursor++
+		}
+		m.anchor = m.cursor
+	case "shift+up":
+		if m.cursor > 0 {
+			m.cursor--
+			m.sel = selRange(m.anchor, m.cursor)
+		}
+	case "shift+down":
+		if m.cursor < len(m.entries)-1 {
+			m.cursor++
+			m.sel = selRange(m.anchor, m.cursor)
+		}
+	case "a":
+		if len(m.entries) > 0 {
+			m.sel = selRange(0, len(m.entries)-1)
+			m.anchor = m.cursor
+		}
+	case "d":
+		m.sel = nil
+	case "i":
+		if m.lib != nil && len(m.entries) > 0 {
+			m.dialog = importDialog{
+				mode:    importDialogIgnore,
+				entries: m.selectedEntries(),
+			}
+		}
+	case "c":
+		if m.lib != nil && len(m.entries) > 0 {
+			return m, loadImportTopicsCmd(m.lib, m.selectedEntries())
+		}
+	}
+	return m, nil
+}
+
 func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
+
 	case entriesMsg:
 		m.entries = []importer.Entry(msg)
 		m.sel = nil
@@ -802,7 +861,6 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 		}
 		m.dialog = importDialog{}
 		m.sel = nil
-		// remove the handled entry from the list
 		for i, e := range m.entries {
 			if e.Name == msg.entryName {
 				m.entries = append(m.entries[:i], m.entries[i+1:]...)
@@ -875,83 +933,11 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch m.dialog.mode {
 		case importDialogIgnore:
-			switch msg.String() {
-			case "j", "enter":
-				m.dialog.errMsg = ""
-				if len(m.dialog.entries) == 1 {
-					return m, ignoreEntryCmd(m.lib, m.dialog.entries[0])
-				}
-				return m, batchIgnoreCmd(m.lib, m.dialog.entries)
-			case "n", "esc":
-				m.dialog = importDialog{}
-			}
-			return m, nil
-
+			return m.handleIgnoreDialogKey(msg)
 		case importDialogCopy:
-			switch msg.String() {
-			case "up", "k":
-				if m.dialog.topicCursor > 0 {
-					m.dialog.topicCursor--
-				}
-			case "down", "j":
-				if m.dialog.topicCursor < len(m.dialog.topics)-1 {
-					m.dialog.topicCursor++
-				}
-			case "enter":
-				topic := m.dialog.topics[m.dialog.topicCursor]
-				m.dialog.errMsg = ""
-				if len(m.dialog.entries) == 1 {
-					return m, copyEntryCmd(m.lib, m.dialog.entries[0], topic)
-				}
-				return m, batchCopyCmd(m.lib, m.dialog.entries, topic)
-			case "esc":
-				m.dialog = importDialog{}
-			}
-			return m, nil
-
-		default: // importDialogNone
-			switch msg.String() {
-			case "up", "k":
-				m.sel = nil
-				if m.cursor > 0 {
-					m.cursor--
-				}
-				m.anchor = m.cursor
-			case "down", "j":
-				m.sel = nil
-				if m.cursor < len(m.entries)-1 {
-					m.cursor++
-				}
-				m.anchor = m.cursor
-			case "shift+up":
-				if m.cursor > 0 {
-					m.cursor--
-					m.sel = selRange(m.anchor, m.cursor)
-				}
-			case "shift+down":
-				if m.cursor < len(m.entries)-1 {
-					m.cursor++
-					m.sel = selRange(m.anchor, m.cursor)
-				}
-			case "a":
-				if len(m.entries) > 0 {
-					m.sel = selRange(0, len(m.entries)-1)
-					m.anchor = m.cursor
-				}
-			case "d":
-				m.sel = nil
-			case "i":
-				if m.lib != nil && len(m.entries) > 0 {
-					m.dialog = importDialog{
-						mode:    importDialogIgnore,
-						entries: m.selectedEntries(),
-					}
-				}
-			case "c":
-				if m.lib != nil && len(m.entries) > 0 {
-					return m, loadImportTopicsCmd(m.lib, m.selectedEntries())
-				}
-			}
+			return m.handleCopyDialogKey(msg)
+		default:
+			return m.handleNormalKey(msg)
 		}
 	}
 	return m, nil
@@ -1095,6 +1081,107 @@ func (m ignoredModel) selectedIgnoredEntries() []storage.IgnoredEntry {
 	return entries
 }
 
+func (m ignoredModel) handleDeleteDialogKey(msg tea.KeyMsg) (ignoredModel, tea.Cmd) {
+	switch msg.String() {
+	case "j", "enter":
+		m.dialog.errMsg = ""
+		if len(m.dialog.entries) > 1 {
+			return m, batchUnmarkCmd(m.lib, m.dialog.entries)
+		}
+		return m, unmarkFileCmd(m.lib, m.dialog.filename, m.dialog.sourcePath, m.dialog.size)
+	case "n", "esc":
+		m.dialog = ignoredDialog{}
+	}
+	return m, nil
+}
+
+func (m ignoredModel) handleCopyDialogKey(msg tea.KeyMsg) (ignoredModel, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if m.dialog.cursor > 0 {
+			m.dialog.cursor--
+		}
+	case "down", "j":
+		if m.dialog.cursor < len(m.dialog.topics)-1 {
+			m.dialog.cursor++
+		}
+	case "enter":
+		topic := m.dialog.topics[m.dialog.cursor]
+		m.dialog.errMsg = ""
+		if len(m.dialog.entries) > 1 {
+			return m, batchCopyFromIgnoredCmd(m.lib, m.dialog.entries, topic)
+		}
+		return m, copyFromIgnoredCmd(m.lib, m.dialog.filename, m.dialog.sourcePath, topic)
+	case "esc":
+		m.dialog = ignoredDialog{}
+	}
+	return m, nil
+}
+
+func (m ignoredModel) handleNormalKey(msg tea.KeyMsg) (ignoredModel, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.sel = nil
+		if m.cursor > 0 {
+			m.cursor--
+		}
+		m.anchor = m.cursor
+	case "down", "j":
+		m.sel = nil
+		if m.cursor < len(m.entries)-1 {
+			m.cursor++
+		}
+		m.anchor = m.cursor
+	case "shift+up":
+		if m.cursor > 0 {
+			m.cursor--
+			m.sel = selRange(m.anchor, m.cursor)
+		}
+	case "shift+down":
+		if m.cursor < len(m.entries)-1 {
+			m.cursor++
+			m.sel = selRange(m.anchor, m.cursor)
+		}
+	case "a":
+		if len(m.entries) > 0 {
+			m.sel = selRange(0, len(m.entries)-1)
+			m.anchor = m.cursor
+		}
+	case "d":
+		m.sel = nil
+	case "r":
+		return m, loadIgnoredCmd(m.lib)
+	case "delete":
+		if m.lib != nil && len(m.entries) > 0 {
+			entries := m.selectedIgnoredEntries()
+			if len(entries) > 1 {
+				m.dialog = ignoredDialog{
+					mode:    ignoredDialogDelete,
+					entries: entries,
+				}
+			} else {
+				e := m.entries[m.cursor]
+				m.dialog = ignoredDialog{
+					mode:       ignoredDialogDelete,
+					filename:   e.Name,
+					sourcePath: e.SourcePath,
+					size:       e.Size,
+				}
+			}
+		}
+	case "c":
+		if m.lib != nil && len(m.entries) > 0 {
+			entries := m.selectedIgnoredEntries()
+			if len(entries) > 1 {
+				return m, loadIgnoredBatchTopicsCmd(m.lib, entries)
+			}
+			e := m.entries[m.cursor]
+			return m, loadIgnoredTopicsCmd(m.lib, e.Name, e.SourcePath)
+		}
+	}
+	return m, nil
+}
+
 func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -1196,101 +1283,11 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch m.dialog.mode {
 		case ignoredDialogDelete:
-			switch msg.String() {
-			case "j", "enter":
-				m.dialog.errMsg = ""
-				if len(m.dialog.entries) > 1 {
-					return m, batchUnmarkCmd(m.lib, m.dialog.entries)
-				}
-				return m, unmarkFileCmd(m.lib, m.dialog.filename, m.dialog.sourcePath, m.dialog.size)
-			case "n", "esc":
-				m.dialog = ignoredDialog{}
-			}
-			return m, nil
-
+			return m.handleDeleteDialogKey(msg)
 		case ignoredDialogCopy:
-			switch msg.String() {
-			case "up", "k":
-				if m.dialog.cursor > 0 {
-					m.dialog.cursor--
-				}
-			case "down", "j":
-				if m.dialog.cursor < len(m.dialog.topics)-1 {
-					m.dialog.cursor++
-				}
-			case "enter":
-				topic := m.dialog.topics[m.dialog.cursor]
-				m.dialog.errMsg = ""
-				if len(m.dialog.entries) > 1 {
-					return m, batchCopyFromIgnoredCmd(m.lib, m.dialog.entries, topic)
-				}
-				return m, copyFromIgnoredCmd(m.lib, m.dialog.filename, m.dialog.sourcePath, topic)
-			case "esc":
-				m.dialog = ignoredDialog{}
-			}
-			return m, nil
-
-		default: // ignoredDialogNone
-			switch msg.String() {
-			case "up", "k":
-				m.sel = nil
-				if m.cursor > 0 {
-					m.cursor--
-				}
-				m.anchor = m.cursor
-			case "down", "j":
-				m.sel = nil
-				if m.cursor < len(m.entries)-1 {
-					m.cursor++
-				}
-				m.anchor = m.cursor
-			case "shift+up":
-				if m.cursor > 0 {
-					m.cursor--
-					m.sel = selRange(m.anchor, m.cursor)
-				}
-			case "shift+down":
-				if m.cursor < len(m.entries)-1 {
-					m.cursor++
-					m.sel = selRange(m.anchor, m.cursor)
-				}
-			case "a":
-				if len(m.entries) > 0 {
-					m.sel = selRange(0, len(m.entries)-1)
-					m.anchor = m.cursor
-				}
-			case "d":
-				m.sel = nil
-			case "r":
-				return m, loadIgnoredCmd(m.lib)
-			case "delete":
-				if m.lib != nil && len(m.entries) > 0 {
-					entries := m.selectedIgnoredEntries()
-					if len(entries) > 1 {
-						m.dialog = ignoredDialog{
-							mode:    ignoredDialogDelete,
-							entries: entries,
-						}
-					} else {
-						e := m.entries[m.cursor]
-						m.dialog = ignoredDialog{
-							mode:       ignoredDialogDelete,
-							filename:   e.Name,
-							sourcePath: e.SourcePath,
-							size:       e.Size,
-						}
-					}
-				}
-			case "c":
-				if m.lib != nil && len(m.entries) > 0 {
-					entries := m.selectedIgnoredEntries()
-					if len(entries) > 1 {
-						return m, loadIgnoredBatchTopicsCmd(m.lib, entries)
-					}
-					e := m.entries[m.cursor]
-					return m, loadIgnoredTopicsCmd(m.lib, e.Name, e.SourcePath)
-				}
-			}
+			return m.handleCopyDialogKey(msg)
+		default:
+			return m.handleNormalKey(msg)
 		}
 	}
 	return m, nil
