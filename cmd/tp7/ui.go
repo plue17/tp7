@@ -913,16 +913,16 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 			switch msg.String() {
 			case "up", "k":
 				m.sel = nil
-				m.anchor = m.cursor
 				if m.cursor > 0 {
 					m.cursor--
 				}
+				m.anchor = m.cursor
 			case "down", "j":
 				m.sel = nil
-				m.anchor = m.cursor
 				if m.cursor < len(m.entries)-1 {
 					m.cursor++
 				}
+				m.anchor = m.cursor
 			case "shift+up":
 				if m.cursor > 0 {
 					m.cursor--
@@ -1234,16 +1234,16 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 			switch msg.String() {
 			case "up", "k":
 				m.sel = nil
-				m.anchor = m.cursor
 				if m.cursor > 0 {
 					m.cursor--
 				}
+				m.anchor = m.cursor
 			case "down", "j":
 				m.sel = nil
-				m.anchor = m.cursor
 				if m.cursor < len(m.entries)-1 {
 					m.cursor++
 				}
+				m.anchor = m.cursor
 			case "shift+up":
 				if m.cursor > 0 {
 					m.cursor--
