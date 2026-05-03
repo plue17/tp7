@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -95,6 +96,34 @@ func (l *Library) TopicFiles(topicName string) ([]string, error) {
 // markFilePath returns the path to the YAML mark file for the given voice memo filename.
 func (l *Library) markFilePath(filename string) string {
 	return filepath.Join(l.Path, markedDir, filename+".yaml")
+}
+
+// CopyToTopic copies srcPath into the given topic directory, then marks the
+// file as ActionCopied. The filename inside the topic is the base name of srcPath.
+func (l *Library) CopyToTopic(topicName, srcPath string) error {
+	filename := filepath.Base(srcPath)
+	dst := filepath.Join(l.Path, topicName, filename)
+
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return fmt.Errorf("opening source %q: %w", srcPath, err)
+	}
+	defer src.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("creating destination %q: %w", dst, err)
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, src); err != nil {
+		return fmt.Errorf("copying to topic %q: %w", topicName, err)
+	}
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("closing destination: %w", err)
+	}
+
+	return l.MarkFile(filename, ActionCopied, topicName)
 }
 
 // MarkFile records a decision for a voice memo file.

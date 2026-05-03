@@ -52,6 +52,17 @@ type createTopicMsg struct {
 	err  error
 }
 
+type importActionDoneMsg struct {
+	entryName string
+	err       error
+}
+
+type importTopicsLoadedMsg struct {
+	entry  importer.Entry
+	topics []string
+	err    error
+}
+
 // ── new-topic dialog ─────────────────────────────────────────────────────────
 
 type newTopicDialog struct {
@@ -64,6 +75,34 @@ func createTopicCmd(lib *storage.Library, name string) tea.Cmd {
 	return func() tea.Msg {
 		_, err := lib.CreateTopic(name)
 		return createTopicMsg{name: name, err: err}
+	}
+}
+
+func loadImportTopicsCmd(lib *storage.Library, entry importer.Entry) tea.Cmd {
+	return func() tea.Msg {
+		topics, err := lib.Topics()
+		if err != nil {
+			return importTopicsLoadedMsg{entry: entry, err: err}
+		}
+		names := make([]string, len(topics))
+		for i, t := range topics {
+			names[i] = t.Name
+		}
+		return importTopicsLoadedMsg{entry: entry, topics: names}
+	}
+}
+
+func ignoreEntryCmd(lib *storage.Library, entry importer.Entry) tea.Cmd {
+	return func() tea.Msg {
+		err := lib.MarkFile(entry.Name, storage.ActionIgnore, "")
+		return importActionDoneMsg{entryName: entry.Name, err: err}
+	}
+}
+
+func copyEntryCmd(lib *storage.Library, entry importer.Entry, topicName string) tea.Cmd {
+	return func() tea.Msg {
+		err := lib.CopyToTopic(topicName, entry.Path)
+		return importActionDoneMsg{entryName: entry.Name, err: err}
 	}
 }
 
@@ -299,19 +338,39 @@ func (m libraryModel) renderDialog() string {
 	return "\n" + styleDialog.Render(body) + "\n"
 }
 
+// ── import dialog ─────────────────────────────────────────────────────────────
+
+type importDialogMode int
+
+const (
+	importDialogNone   importDialogMode = iota
+	importDialogIgnore                  // confirm ignore
+	importDialogCopy                    // choose topic
+)
+
+type importDialog struct {
+	mode        importDialogMode
+	entry       importer.Entry
+	topics      []string
+	topicCursor int
+	errMsg      string
+}
+
 // ── import model (F2) ─────────────────────────────────────────────────────────
 
 type importModel struct {
+	lib       *storage.Library
 	entries   []importer.Entry
 	cursor    int
 	height    int
 	width     int
 	status    string
 	entriesCh <-chan []importer.Entry
+	dialog    importDialog
 }
 
-func newImportModel(ch <-chan []importer.Entry) importModel {
-	return importModel{entriesCh: ch, status: "Warte auf TP-7…"}
+func newImportModel(lib *storage.Library, ch <-chan []importer.Entry) importModel {
+	return importModel{lib: lib, entriesCh: ch, status: "Warte auf TP-7…"}
 }
 
 func (m importModel) Init() tea.Cmd {
@@ -335,15 +394,94 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 		}
 		m.status = fmt.Sprintf("%d neue Aufnahme(n)", len(m.entries))
 		return m, m.awaitEntries()
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
+
+	case importTopicsLoadedMsg:
+		if msg.err != nil {
+			m.dialog = importDialog{}
+			m.status = fmt.Sprintf("Fehler: %v", msg.err)
+			return m, nil
+		}
+		if len(msg.topics) == 0 {
+			m.dialog = importDialog{}
+			m.status = "Keine Topics vorhanden – erst in F1 ein Topic erstellen"
+			return m, nil
+		}
+		m.dialog = importDialog{
+			mode:   importDialogCopy,
+			entry:  msg.entry,
+			topics: msg.topics,
+		}
+
+	case importActionDoneMsg:
+		if msg.err != nil {
+			m.dialog.errMsg = fmt.Sprintf("Fehler: %v", msg.err)
+			return m, nil
+		}
+		m.dialog = importDialog{}
+		// remove the handled entry from the list
+		for i, e := range m.entries {
+			if e.Name == msg.entryName {
+				m.entries = append(m.entries[:i], m.entries[i+1:]...)
+				break
 			}
-		case "down", "j":
-			if m.cursor < len(m.entries)-1 {
-				m.cursor++
+		}
+		if m.cursor >= len(m.entries) {
+			m.cursor = max(0, len(m.entries)-1)
+		}
+		m.status = fmt.Sprintf("%d neue Aufnahme(n)", len(m.entries))
+
+	case tea.KeyMsg:
+		switch m.dialog.mode {
+		case importDialogIgnore:
+			switch msg.String() {
+			case "j", "enter":
+				m.dialog.errMsg = ""
+				return m, ignoreEntryCmd(m.lib, m.dialog.entry)
+			case "n", "esc":
+				m.dialog = importDialog{}
+			}
+			return m, nil
+
+		case importDialogCopy:
+			switch msg.String() {
+			case "up", "k":
+				if m.dialog.topicCursor > 0 {
+					m.dialog.topicCursor--
+				}
+			case "down", "j":
+				if m.dialog.topicCursor < len(m.dialog.topics)-1 {
+					m.dialog.topicCursor++
+				}
+			case "enter":
+				topic := m.dialog.topics[m.dialog.topicCursor]
+				m.dialog.errMsg = ""
+				return m, copyEntryCmd(m.lib, m.dialog.entry, topic)
+			case "esc":
+				m.dialog = importDialog{}
+			}
+			return m, nil
+
+		default: // importDialogNone
+			switch msg.String() {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < len(m.entries)-1 {
+					m.cursor++
+				}
+			case "i":
+				if m.lib != nil && len(m.entries) > 0 {
+					m.dialog = importDialog{
+						mode:  importDialogIgnore,
+						entry: m.entries[m.cursor],
+					}
+				}
+			case "c":
+				if m.lib != nil && len(m.entries) > 0 {
+					return m, loadImportTopicsCmd(m.lib, m.entries[m.cursor])
+				}
 			}
 		}
 	}
@@ -372,7 +510,41 @@ func (m importModel) view() string {
 			out += line + "\n"
 		}
 	}
+	if m.dialog.mode != importDialogNone {
+		out += m.renderDialog()
+	}
 	return out
+}
+
+func (m importModel) renderDialog() string {
+	var body string
+	switch m.dialog.mode {
+	case importDialogIgnore:
+		body = fmt.Sprintf(
+			"Aufnahme ignorieren?\n\n"+
+				styleDim.Render("%s")+"\n\n"+
+				"Die Datei wird nicht kopiert und in Zukunft\n"+
+				"nicht mehr in der Liste erscheinen.\n\n"+
+				styleDim.Render("j / Enter bestätigen  •  n / Esc abbrechen"),
+			m.dialog.entry.Name,
+		)
+	case importDialogCopy:
+		body = fmt.Sprintf("In welches Topic kopieren?\n\n"+styleDim.Render("%s")+"\n\n",
+			m.dialog.entry.Name)
+		for i, t := range m.dialog.topics {
+			line := "  " + t
+			if i == m.dialog.topicCursor {
+				body += styleSelected.Render(line) + "\n"
+			} else {
+				body += line + "\n"
+			}
+		}
+		body += "\n" + styleDim.Render("↑/↓ wählen  •  Enter kopieren  •  Esc abbrechen")
+	}
+	if m.dialog.errMsg != "" {
+		body += "\n" + styleDialogErr.Render(m.dialog.errMsg)
+	}
+	return "\n" + styleDialog.Render(body) + "\n"
 }
 
 // ── root model ────────────────────────────────────────────────────────────────
@@ -389,7 +561,7 @@ func newRootModel(lib *storage.Library, ch <-chan []importer.Entry) rootModel {
 	return rootModel{
 		active:  tabLibrary,
 		library: newLibraryModel(lib),
-		imports: newImportModel(ch),
+		imports: newImportModel(lib, ch),
 	}
 }
 
@@ -410,10 +582,15 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(c1, c2)
 
 	case tea.KeyMsg:
-		// While a dialog is open, forward everything to the library tab.
+		// Forward everything to active tab when a dialog is open.
 		if m.active == tabLibrary && m.library.dialog.active {
 			lib, cmd := m.library.update(msg)
 			m.library = lib
+			return m, cmd
+		}
+		if m.active == tabImport && m.imports.dialog.mode != importDialogNone {
+			imp, cmd := m.imports.update(msg)
+			m.imports = imp
 			return m, cmd
 		}
 		switch msg.String() {
@@ -472,7 +649,18 @@ func (m rootModel) View() string {
 		content = m.imports.view()
 	}
 
-	footer := styleDim.Render("F1/F2 Tab wechseln • ↑/↓ scrollen • Enter aufklappen • n neues Topic • r neu laden • q beenden")
+	var footerParts string
+	switch m.active {
+	case tabLibrary:
+		footerParts = "↑/↓ scrollen • Enter aufklappen • n neues Topic • r neu laden • q beenden"
+	case tabImport:
+		if len(m.imports.entries) > 0 && m.imports.dialog.mode == importDialogNone {
+			footerParts = "↑/↓ scrollen • i ignorieren • c kopieren • q beenden"
+		} else {
+			footerParts = "↑/↓ scrollen • q beenden"
+		}
+	}
+	footer := styleDim.Render("F1/F2 Tab wechseln • " + footerParts)
 	return tabBar + "\n\n" + content + "\n" + footer
 }
 
