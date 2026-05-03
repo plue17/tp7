@@ -10,6 +10,7 @@ import (
 
 	"tp7/internal/config"
 	"tp7/internal/importer"
+	"tp7/internal/storage"
 )
 
 func main() {
@@ -40,6 +41,13 @@ func main() {
 		VendorID:  cfg.MTPDevice.VendorID,
 		ProductID: cfg.MTPDevice.ProductID,
 		Debug:     *debug,
+	}
+
+	if cfg.Library.Path != "" {
+		if _, err := storage.Open(cfg.Library.Path); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	svc.Start()

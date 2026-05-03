@@ -41,6 +41,14 @@ func Load(path string, explicit bool) (*Config, error) {
 // Config is the top-level configuration structure.
 type Config struct {
 	MTPDevice MTPDeviceConfig `yaml:"mtp_device"`
+	Library   LibraryConfig   `yaml:"library"`
+}
+
+// LibraryConfig describes the on-disk library of topics.
+type LibraryConfig struct {
+	// Path is the root directory of the library.
+	// If empty, no library is used.
+	Path string `yaml:"path"`
 }
 
 // MTPDeviceConfig describes the MTP device to search for.
