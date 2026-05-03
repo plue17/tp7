@@ -37,17 +37,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	var lib *storage.Library
+	if cfg.Library.Path != "" {
+		var err error
+		lib, err = storage.Open(cfg.Library.Path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
 	svc := &importer.Service{
 		VendorID:  cfg.MTPDevice.VendorID,
 		ProductID: cfg.MTPDevice.ProductID,
 		Debug:     *debug,
-	}
-
-	if cfg.Library.Path != "" {
-		if _, err := storage.Open(cfg.Library.Path); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
-		}
+		Library:   lib,
 	}
 
 	svc.Start()

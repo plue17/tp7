@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"tp7/internal/storage"
 )
 
 // State represents the current state of the Service.
@@ -28,6 +30,10 @@ type Service struct {
 
 	// Debug enables verbose debug logging via slog.
 	Debug bool
+
+	// Library is used to filter already-marked recordings from log output.
+	// May be nil, in which case all recordings are shown.
+	Library *storage.Library
 
 	cancel context.CancelFunc
 	done   chan struct{}
@@ -66,6 +72,26 @@ func (s *Service) Stop() {
 	s.cancel = nil
 }
 
+// filterMarked returns only the entries that have not yet been marked in the library.
+// If no library is configured, all entries are returned unchanged.
+func (s *Service) filterMarked(entries []Entry) []Entry {
+	if s.Library == nil {
+		return entries
+	}
+	var result []Entry
+	for _, e := range entries {
+		marked, err := s.Library.IsMarked(e.Name)
+		if err != nil {
+			slog.Warn("importer: could not check mark", "name", e.Name, "err", err)
+			continue
+		}
+		if !marked {
+			result = append(result, e)
+		}
+	}
+	return result
+}
+
 func (s *Service) run(ctx context.Context, interval time.Duration) {
 	defer close(s.done)
 
@@ -95,7 +121,11 @@ func (s *Service) run(ctx context.Context, interval time.Duration) {
 				if entries, err := dev.ListRecordings(); err != nil {
 					slog.Warn("importer: could not list recordings", "err", err)
 				} else {
-					slog.Info("importer: recordings found", "count", len(entries))
+					new := s.filterMarked(entries)
+					slog.Info("importer: recordings found", "total", len(entries), "new", len(new))
+					for _, e := range new {
+						slog.Debug("importer: new recording", "name", e.Name, "size", e.Size)
+					}
 				}
 
 			case StateConnected:

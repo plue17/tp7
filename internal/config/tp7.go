@@ -3,16 +3,24 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
 
 // defaults returns a Config populated with built-in default values.
 func defaults() *Config {
+	lib := ""
+	if home, err := os.UserHomeDir(); err == nil {
+		lib = filepath.Join(home, "tp7")
+	}
 	return &Config{
 		MTPDevice: MTPDeviceConfig{
 			VendorID:  "2367",
 			ProductID: "0019",
+		},
+		Library: LibraryConfig{
+			Path: lib,
 		},
 	}
 }
@@ -47,7 +55,7 @@ type Config struct {
 // LibraryConfig describes the on-disk library of topics.
 type LibraryConfig struct {
 	// Path is the root directory of the library.
-	// If empty, no library is used.
+	// Defaults to $HOME/tp7 if not set in the YAML.
 	Path string `yaml:"path"`
 }
 
