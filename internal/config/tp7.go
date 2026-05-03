@@ -1,0 +1,37 @@
+package config
+
+import (
+	"fmt"
+	"os"
+
+	"gopkg.in/yaml.v3"
+)
+
+// Load reads a YAML configuration file and returns the parsed Config.
+func Load(path string) (*Config, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening configuration: %w", err)
+	}
+	defer f.Close()
+
+	var cfg Config
+	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
+		return nil, fmt.Errorf("parsing configuration: %w", err)
+	}
+
+	return &cfg, nil
+}
+
+// Config is the top-level configuration structure.
+type Config struct {
+	MTPDevice MTPDeviceConfig `yaml:"mtp_device"`
+}
+
+// MTPDeviceConfig describes the MTP device to search for.
+type MTPDeviceConfig struct {
+	// VendorID is the USB vendor ID in hex (e.g. "2367").
+	VendorID string `yaml:"vendor_id"`
+	// ProductID is the USB product ID in hex (e.g. "0019").
+	ProductID string `yaml:"product_id"`
+}

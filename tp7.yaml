@@ -1,0 +1,3 @@
+mtp_device:
+  vendor_id: "2367"   # Teenage Engineering
+  product_id: "0019"  # TP-7
