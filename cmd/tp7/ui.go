@@ -66,8 +66,28 @@ type importTopicsLoadedMsg struct {
 }
 
 type loadIgnoredMsg struct {
-	names []string
-	err   error
+	entries []storage.IgnoredEntry
+	err     error
+}
+
+type ignoredTopicsLoadedMsg struct {
+	filename   string
+	sourcePath string
+	topics     []string
+	err        error
+}
+
+type ignoredFileDoneMsg struct {
+	filename  string
+	topicName string // non-empty = was copied to a topic
+	err       error
+}
+
+type libFileDoneMsg struct {
+	topicName string
+	fileName  string
+	isIgnore  bool
+	err       error
 }
 
 // ── new-topic dialog ─────────────────────────────────────────────────────────
@@ -101,7 +121,7 @@ func loadImportTopicsCmd(lib *storage.Library, entry importer.Entry) tea.Cmd {
 
 func ignoreEntryCmd(lib *storage.Library, entry importer.Entry) tea.Cmd {
 	return func() tea.Msg {
-		err := lib.MarkFile(entry.Name, storage.ActionIgnore, "")
+		err := lib.MarkFile(entry.Name, storage.ActionIgnore, "", entry.Path)
 		return importActionDoneMsg{entryName: entry.Name, err: err}
 	}
 }
@@ -115,8 +135,63 @@ func copyEntryCmd(lib *storage.Library, entry importer.Entry, topicName string) 
 
 func loadIgnoredCmd(lib *storage.Library) tea.Cmd {
 	return func() tea.Msg {
-		names, err := lib.ListIgnored()
-		return loadIgnoredMsg{names: names, err: err}
+		entries, err := lib.ListIgnored()
+		return loadIgnoredMsg{entries: entries, err: err}
+	}
+}
+
+func removeFromTopicCmd(lib *storage.Library, topicName, filename string) tea.Cmd {
+	return func() tea.Msg {
+		err := lib.RemoveFromTopic(topicName, filename)
+		if err == nil {
+			err = lib.UnmarkFile(filename)
+		}
+		return libFileDoneMsg{topicName: topicName, fileName: filename, isIgnore: false, err: err}
+	}
+}
+
+func ignoreInTopicCmd(lib *storage.Library, topicName, filename string) tea.Cmd {
+	return func() tea.Msg {
+		err := lib.RemoveFromTopic(topicName, filename)
+		if err == nil {
+			err = lib.MarkFile(filename, storage.ActionIgnore, "", "")
+		}
+		return libFileDoneMsg{topicName: topicName, fileName: filename, isIgnore: true, err: err}
+	}
+}
+
+func unmarkFileCmd(lib *storage.Library, filename string) tea.Cmd {
+	return func() tea.Msg {
+		err := lib.UnmarkFile(filename)
+		return ignoredFileDoneMsg{filename: filename, err: err}
+	}
+}
+
+func loadIgnoredTopicsCmd(lib *storage.Library, filename, sourcePath string) tea.Cmd {
+	return func() tea.Msg {
+		topics, err := lib.Topics()
+		if err != nil {
+			return ignoredTopicsLoadedMsg{filename: filename, sourcePath: sourcePath, err: err}
+		}
+		names := make([]string, len(topics))
+		for i, t := range topics {
+			names[i] = t.Name
+		}
+		return ignoredTopicsLoadedMsg{filename: filename, sourcePath: sourcePath, topics: names}
+	}
+}
+
+func copyFromIgnoredCmd(lib *storage.Library, filename, sourcePath, topicName string) tea.Cmd {
+	return func() tea.Msg {
+		if sourcePath == "" {
+			return ignoredFileDoneMsg{
+				filename:  filename,
+				topicName: topicName,
+				err:       fmt.Errorf("Quellpfad unbekannt – Datei über F2 kopieren"),
+			}
+		}
+		err := lib.CopyToTopic(topicName, sourcePath)
+		return ignoredFileDoneMsg{filename: filename, topicName: topicName, err: err}
 	}
 }
 
@@ -143,6 +218,23 @@ func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
 	}
 }
 
+// ── library confirm dialog ──────────────────────────────────────────────────
+
+type libConfirmMode int
+
+const (
+	libConfirmNone   libConfirmMode = iota
+	libConfirmDelete                // remove from topic + unmark
+	libConfirmIgnore                // remove from topic + mark as ignored
+)
+
+type libConfirmDialog struct {
+	mode      libConfirmMode
+	topicName string
+	fileName  string
+	errMsg    string
+}
+
 // ── library model (F1) ────────────────────────────────────────────────────────
 
 type topicNode struct {
@@ -160,13 +252,14 @@ type flatRow struct {
 }
 
 type libraryModel struct {
-	lib    *storage.Library
-	topics []topicNode
-	cursor int
-	height int
-	width  int
-	status string
-	dialog newTopicDialog
+	lib     *storage.Library
+	topics  []topicNode
+	cursor  int
+	height  int
+	width   int
+	status  string
+	dialog  newTopicDialog
+	confirm libConfirmDialog
 }
 
 func newLibraryModel(lib *storage.Library) libraryModel {
@@ -266,6 +359,37 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 
+	case ignoredFileDoneMsg:
+		// F3 copied a file to a topic – refresh that topic in F1
+		if msg.topicName == "" || msg.err != nil {
+			return m, nil
+		}
+		for i := range m.topics {
+			if m.topics[i].name == msg.topicName {
+				if m.topics[i].expanded {
+					return m, loadFilesCmd(m.lib, msg.topicName)
+				}
+				m.topics[i].loaded = false
+				break
+			}
+		}
+
+	case libFileDoneMsg:
+		if msg.err != nil {
+			m.confirm.errMsg = fmt.Sprintf("Fehler: %v", msg.err)
+			return m, nil
+		}
+		m.confirm = libConfirmDialog{}
+		for i := range m.topics {
+			if m.topics[i].name == msg.topicName {
+				if m.topics[i].expanded {
+					return m, loadFilesCmd(m.lib, msg.topicName)
+				}
+				m.topics[i].loaded = false
+				break
+			}
+		}
+
 	case createTopicMsg:
 		if msg.err != nil {
 			m.dialog.errMsg = fmt.Sprintf("Fehler: %v", msg.err)
@@ -301,6 +425,23 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			return m, nil
 		}
 
+		// ── confirm dialog mode ──
+		if m.confirm.mode != libConfirmNone {
+			switch msg.String() {
+			case "j", "enter":
+				m.confirm.errMsg = ""
+				switch m.confirm.mode {
+				case libConfirmDelete:
+					return m, removeFromTopicCmd(m.lib, m.confirm.topicName, m.confirm.fileName)
+				case libConfirmIgnore:
+					return m, ignoreInTopicCmd(m.lib, m.confirm.topicName, m.confirm.fileName)
+				}
+			case "n", "esc":
+				m.confirm = libConfirmDialog{}
+			}
+			return m, nil
+		}
+
 		// ── normal mode ──
 		rows := m.buildRows()
 		switch msg.String() {
@@ -329,6 +470,19 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			}
 		case "r":
 			return m, loadTopicsCmd(m.lib)
+		case "i", "delete":
+			if m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
+				row := rows[m.cursor]
+				mode := libConfirmIgnore
+				if msg.String() == "delete" {
+					mode = libConfirmDelete
+				}
+				m.confirm = libConfirmDialog{
+					mode:      mode,
+					topicName: m.topics[row.topicIdx].name,
+					fileName:  m.topics[row.topicIdx].files[row.fileIdx],
+				}
+			}
 		}
 	}
 	return m, nil
@@ -376,6 +530,9 @@ func (m libraryModel) view() string {
 	if m.dialog.active {
 		out += m.renderDialog()
 	}
+	if m.confirm.mode != libConfirmNone {
+		out += m.renderConfirmDialog()
+	}
 	return out
 }
 
@@ -386,6 +543,24 @@ func (m libraryModel) renderDialog() string {
 		body = prompt + "\n" + styleDialogErr.Render(m.dialog.errMsg)
 	} else {
 		body = prompt + "\n" + styleDim.Render("Enter bestätigen • Esc abbrechen")
+	}
+	return "\n" + styleDialog.Render(body) + "\n"
+}
+func (m libraryModel) renderConfirmDialog() string {
+	var action string
+	switch m.confirm.mode {
+	case libConfirmDelete:
+		action = "Datei aus Topic entfernen und Markierung löschen?"
+	case libConfirmIgnore:
+		action = "Datei aus Topic entfernen und ignorieren?"
+	}
+	body := fmt.Sprintf("%s\n\n%s\n\n%s",
+		action,
+		styleDim.Render(m.confirm.topicName+"/"+m.confirm.fileName),
+		styleDim.Render("j / Enter bestätigen  •  n / Esc abbrechen"),
+	)
+	if m.confirm.errMsg != "" {
+		body += "\n" + styleDialogErr.Render(m.confirm.errMsg)
 	}
 	return "\n" + styleDialog.Render(body) + "\n"
 }
@@ -601,13 +776,31 @@ func (m importModel) renderDialog() string {
 
 // ── ignored model (F3) ───────────────────────────────────────────────────────
 
+type ignoredDialogMode int
+
+const (
+	ignoredDialogNone   ignoredDialogMode = iota
+	ignoredDialogDelete                   // confirm unmark
+	ignoredDialogCopy                     // pick topic
+)
+
+type ignoredDialog struct {
+	mode       ignoredDialogMode
+	filename   string
+	sourcePath string
+	topics     []string
+	cursor     int
+	errMsg     string
+}
+
 type ignoredModel struct {
-	lib    *storage.Library
-	names  []string
-	cursor int
-	height int
-	width  int
-	status string
+	lib     *storage.Library
+	entries []storage.IgnoredEntry
+	cursor  int
+	height  int
+	width   int
+	status  string
+	dialog  ignoredDialog
 }
 
 func newIgnoredModel(lib *storage.Library) ignoredModel {
@@ -626,32 +819,124 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
+
 	case loadIgnoredMsg:
 		if msg.err != nil {
 			m.status = fmt.Sprintf("Fehler: %v", msg.err)
 			return m, nil
 		}
-		m.names = msg.names
-		if len(m.names) == 0 {
+		m.entries = msg.entries
+		if len(m.entries) == 0 {
 			m.status = "Keine ignorierten Dateien"
 		} else {
-			m.status = fmt.Sprintf("%d ignoriert", len(m.names))
+			m.status = fmt.Sprintf("%d ignoriert", len(m.entries))
 		}
-		if m.cursor >= len(m.names) {
-			m.cursor = max(0, len(m.names)-1)
+		if m.cursor >= len(m.entries) {
+			m.cursor = max(0, len(m.entries)-1)
 		}
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.names)-1 {
-				m.cursor++
-			}
-		case "r":
+
+	case libFileDoneMsg:
+		// F1 ignored a file – reload so it shows up here
+		if msg.isIgnore && msg.err == nil {
 			return m, loadIgnoredCmd(m.lib)
+		}
+
+	case ignoredTopicsLoadedMsg:
+		if msg.err != nil {
+			m.dialog = ignoredDialog{}
+			m.status = fmt.Sprintf("Fehler: %v", msg.err)
+			return m, nil
+		}
+		if len(msg.topics) == 0 {
+			m.dialog = ignoredDialog{}
+			m.status = "Keine Topics vorhanden – erst in F1 ein Topic erstellen"
+			return m, nil
+		}
+		m.dialog = ignoredDialog{
+			mode:       ignoredDialogCopy,
+			filename:   msg.filename,
+			sourcePath: msg.sourcePath,
+			topics:     msg.topics,
+		}
+
+	case ignoredFileDoneMsg:
+		if msg.err != nil {
+			m.dialog.errMsg = fmt.Sprintf("Fehler: %v", msg.err)
+			return m, nil
+		}
+		m.dialog = ignoredDialog{}
+		for i, e := range m.entries {
+			if e.Name == msg.filename {
+				m.entries = append(m.entries[:i], m.entries[i+1:]...)
+				break
+			}
+		}
+		if m.cursor >= len(m.entries) {
+			m.cursor = max(0, len(m.entries)-1)
+		}
+		if len(m.entries) == 0 {
+			m.status = "Keine ignorierten Dateien"
+		} else {
+			m.status = fmt.Sprintf("%d ignoriert", len(m.entries))
+		}
+
+	case tea.KeyMsg:
+		switch m.dialog.mode {
+		case ignoredDialogDelete:
+			switch msg.String() {
+			case "j", "enter":
+				m.dialog.errMsg = ""
+				return m, unmarkFileCmd(m.lib, m.dialog.filename)
+			case "n", "esc":
+				m.dialog = ignoredDialog{}
+			}
+			return m, nil
+
+		case ignoredDialogCopy:
+			switch msg.String() {
+			case "up", "k":
+				if m.dialog.cursor > 0 {
+					m.dialog.cursor--
+				}
+			case "down", "j":
+				if m.dialog.cursor < len(m.dialog.topics)-1 {
+					m.dialog.cursor++
+				}
+			case "enter":
+				topic := m.dialog.topics[m.dialog.cursor]
+				m.dialog.errMsg = ""
+				return m, copyFromIgnoredCmd(m.lib, m.dialog.filename, m.dialog.sourcePath, topic)
+			case "esc":
+				m.dialog = ignoredDialog{}
+			}
+			return m, nil
+
+		default: // ignoredDialogNone
+			switch msg.String() {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < len(m.entries)-1 {
+					m.cursor++
+				}
+			case "r":
+				return m, loadIgnoredCmd(m.lib)
+			case "delete":
+				if m.lib != nil && len(m.entries) > 0 {
+					e := m.entries[m.cursor]
+					m.dialog = ignoredDialog{
+						mode:     ignoredDialogDelete,
+						filename: e.Name,
+					}
+				}
+			case "c":
+				if m.lib != nil && len(m.entries) > 0 {
+					e := m.entries[m.cursor]
+					return m, loadIgnoredTopicsCmd(m.lib, e.Name, e.SourcePath)
+				}
+			}
 		}
 	}
 	return m, nil
@@ -669,19 +954,50 @@ func (m ignoredModel) view() string {
 	if start < 0 {
 		start = 0
 	}
-	if start+listHeight > len(m.names) {
-		start = max(0, len(m.names)-listHeight)
+	if start+listHeight > len(m.entries) {
+		start = max(0, len(m.entries)-listHeight)
 	}
 	var out string
-	for i := start; i < start+listHeight && i < len(m.names); i++ {
-		line := m.names[i]
+	for i := start; i < start+listHeight && i < len(m.entries); i++ {
+		line := m.entries[i].Name
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
 		} else {
 			out += line + "\n"
 		}
 	}
+	if m.dialog.mode != ignoredDialogNone {
+		out += m.renderDialog()
+	}
 	return out
+}
+
+func (m ignoredModel) renderDialog() string {
+	var body string
+	switch m.dialog.mode {
+	case ignoredDialogDelete:
+		body = fmt.Sprintf("Markierung entfernen?\n\n%s\n\n%s\n\n%s",
+			styleDim.Render(m.dialog.filename),
+			"Die Datei erscheint wieder in F2.",
+			styleDim.Render("j / Enter bestätigen  •  n / Esc abbrechen"),
+		)
+	case ignoredDialogCopy:
+		body = fmt.Sprintf("In welches Topic kopieren?\n\n%s\n\n",
+			styleDim.Render(m.dialog.filename))
+		for i, t := range m.dialog.topics {
+			line := "  " + t
+			if i == m.dialog.cursor {
+				body += styleSelected.Render(line) + "\n"
+			} else {
+				body += line + "\n"
+			}
+		}
+		body += "\n" + styleDim.Render("↑/↓ wählen  •  Enter kopieren  •  Esc abbrechen")
+	}
+	if m.dialog.errMsg != "" {
+		body += "\n" + styleDialogErr.Render(m.dialog.errMsg)
+	}
+	return "\n" + styleDialog.Render(body) + "\n"
 }
 
 // ── root model ────────────────────────────────────────────────────────────────
@@ -724,7 +1040,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		// Forward everything to active tab when a dialog is open.
-		if m.active == tabLibrary && m.library.dialog.active {
+		if m.active == tabLibrary && (m.library.dialog.active || m.library.confirm.mode != libConfirmNone) {
 			lib, cmd := m.library.update(msg)
 			m.library = lib
 			return m, cmd
@@ -732,6 +1048,11 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.active == tabImport && m.imports.dialog.mode != importDialogNone {
 			imp, cmd := m.imports.update(msg)
 			m.imports = imp
+			return m, cmd
+		}
+		if m.active == tabIgnored && m.ignored.dialog.mode != ignoredDialogNone {
+			ign, cmd := m.ignored.update(msg)
+			m.ignored = ign
 			return m, cmd
 		}
 		switch msg.String() {
@@ -809,7 +1130,12 @@ func (m rootModel) View() string {
 	var footerParts string
 	switch m.active {
 	case tabLibrary:
-		footerParts = "↑/↓ scrollen • Enter aufklappen • n neues Topic • r neu laden • q beenden"
+		libRows := m.library.buildRows()
+		if len(libRows) > 0 && m.library.cursor < len(libRows) && !libRows[m.library.cursor].isTopic {
+			footerParts = "↑/↓ scrollen • i ignorieren • Entf löschen • n neues Topic • r neu laden • q beenden"
+		} else {
+			footerParts = "↑/↓ scrollen • Enter aufklappen • n neues Topic • r neu laden • q beenden"
+		}
 	case tabImport:
 		if len(m.imports.entries) > 0 && m.imports.dialog.mode == importDialogNone {
 			footerParts = "↑/↓ scrollen • i ignorieren • c kopieren • q beenden"
@@ -817,7 +1143,11 @@ func (m rootModel) View() string {
 			footerParts = "↑/↓ scrollen • q beenden"
 		}
 	case tabIgnored:
-		footerParts = "↑/↓ scrollen • r neu laden • q beenden"
+		if len(m.ignored.entries) > 0 && m.ignored.dialog.mode == ignoredDialogNone {
+			footerParts = "↑/↓ scrollen • c in Topic • Entf entmarkieren • r neu laden • q beenden"
+		} else {
+			footerParts = "↑/↓ scrollen • r neu laden • q beenden"
+		}
 	}
 	footer := styleDim.Render("F1/F2/F3 Tab wechseln • " + footerParts)
 	return tabBar + "\n\n" + content + "\n" + footer

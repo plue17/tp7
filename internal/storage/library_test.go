@@ -95,7 +95,7 @@ func TestMarkFile_Ignore(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 
-	if err := lib.MarkFile("rec001.wav", ActionIgnore, ""); err != nil {
+	if err := lib.MarkFile("rec001.wav", ActionIgnore, "", ""); err != nil {
 		t.Fatalf("MarkFile: %v", err)
 	}
 
@@ -125,7 +125,7 @@ func TestMarkFile_Copied(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 
-	if err := lib.MarkFile("rec002.wav", ActionCopied, "music"); err != nil {
+	if err := lib.MarkFile("rec002.wav", ActionCopied, "music", ""); err != nil {
 		t.Fatalf("MarkFile: %v", err)
 	}
 
@@ -161,7 +161,7 @@ func TestMarkFile_EmptyFilename(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	if err := lib.MarkFile("", ActionIgnore, ""); err == nil {
+	if err := lib.MarkFile("", ActionIgnore, "", ""); err == nil {
 		t.Error("expected error for empty filename, got nil")
 	}
 }

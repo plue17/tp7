@@ -25,6 +25,8 @@ type Mark struct {
 	Action MarkAction `yaml:"action"`
 	// Topic is only set when Action == ActionCopied.
 	Topic string `yaml:"topic,omitempty"`
+	// SourcePath holds the original device path when Action == ActionIgnore.
+	SourcePath string `yaml:"source_path,omitempty"`
 }
 
 // Library is a collection of topics anchored to a directory on disk.
@@ -124,16 +126,17 @@ func (l *Library) CopyToTopic(topicName, srcPath string) error {
 		return fmt.Errorf("closing destination: %w", err)
 	}
 
-	return l.MarkFile(filename, ActionCopied, topicName)
+	return l.MarkFile(filename, ActionCopied, topicName, "")
 }
 
 // MarkFile records a decision for a voice memo file.
 // For ActionCopied, topic must be the topic name; for ActionIgnore it is ignored.
-func (l *Library) MarkFile(filename string, action MarkAction, topic string) error {
+// sourcePath may be set to the original device path when action is ActionIgnore.
+func (l *Library) MarkFile(filename string, action MarkAction, topic, sourcePath string) error {
 	if filename == "" {
 		return fmt.Errorf("filename must not be empty")
 	}
-	m := Mark{Action: action}
+	m := Mark{Action: action, SourcePath: sourcePath}
 	if action == ActionCopied {
 		m.Topic = topic
 	}
@@ -172,19 +175,23 @@ func (l *Library) ReadMark(filename string) (*Mark, error) {
 	return &m, nil
 }
 
-// ListIgnored returns the original filenames of all voice memo files that have
-// been marked with ActionIgnore.
-func (l *Library) ListIgnored() ([]string, error) {
+// IgnoredEntry holds the name and original device path of an ignored recording.
+type IgnoredEntry struct {
+	Name       string
+	SourcePath string
+}
+
+// ListIgnored returns all recordings that have been marked with ActionIgnore.
+func (l *Library) ListIgnored() ([]IgnoredEntry, error) {
 	entries, err := os.ReadDir(filepath.Join(l.Path, markedDir))
 	if err != nil {
 		return nil, fmt.Errorf("reading marks: %w", err)
 	}
-	var names []string
+	var result []IgnoredEntry
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
-		// mark filenames are "<original>.yaml"
 		markName := e.Name()
 		if filepath.Ext(markName) != ".yaml" {
 			continue
@@ -195,8 +202,26 @@ func (l *Library) ListIgnored() ([]string, error) {
 			continue
 		}
 		if m.Action == ActionIgnore {
-			names = append(names, original)
+			result = append(result, IgnoredEntry{Name: original, SourcePath: m.SourcePath})
 		}
 	}
-	return names, nil
+	return result, nil
+}
+
+// UnmarkFile removes the decision record for a voice memo file.
+// If no record exists the call is a no-op.
+func (l *Library) UnmarkFile(filename string) error {
+	if err := os.Remove(l.markFilePath(filename)); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("removing mark for %q: %w", filename, err)
+	}
+	return nil
+}
+
+// RemoveFromTopic deletes a file from a topic's directory.
+func (l *Library) RemoveFromTopic(topicName, filename string) error {
+	path := filepath.Join(l.Path, topicName, filename)
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("removing %q from topic %q: %w", filename, topicName, err)
+	}
+	return nil
 }
