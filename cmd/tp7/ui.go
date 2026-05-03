@@ -78,9 +78,10 @@ type ignoredTopicsLoadedMsg struct {
 }
 
 type ignoredFileDoneMsg struct {
-	filename  string
-	topicName string // non-empty = was copied to a topic
-	err       error
+	filename   string
+	sourcePath string // non-empty when action was unmark
+	topicName  string // non-empty = was copied to a topic
+	err        error
 }
 
 type libFileDoneMsg struct {
@@ -160,10 +161,10 @@ func ignoreInTopicCmd(lib *storage.Library, topicName, filename string) tea.Cmd 
 	}
 }
 
-func unmarkFileCmd(lib *storage.Library, filename string) tea.Cmd {
+func unmarkFileCmd(lib *storage.Library, filename, sourcePath string) tea.Cmd {
 	return func() tea.Msg {
 		err := lib.UnmarkFile(filename)
-		return ignoredFileDoneMsg{filename: filename, err: err}
+		return ignoredFileDoneMsg{filename: filename, sourcePath: sourcePath, err: err}
 	}
 }
 
@@ -657,6 +658,19 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 		}
 		m.status = fmt.Sprintf("%d neue Aufnahme(n)", len(m.entries))
 
+	case ignoredFileDoneMsg:
+		// An ignored file was un-marked in F3 — add it back to the import list.
+		if msg.err != nil || msg.topicName != "" || msg.sourcePath == "" {
+			return m, nil
+		}
+		for _, e := range m.entries {
+			if e.Name == msg.filename {
+				return m, nil // already present
+			}
+		}
+		m.entries = append(m.entries, importer.Entry{Name: msg.filename, Path: msg.sourcePath})
+		m.status = fmt.Sprintf("%d neue Aufnahme(n)", len(m.entries))
+
 	case tea.KeyMsg:
 		switch m.dialog.mode {
 		case importDialogIgnore:
@@ -886,7 +900,7 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 			switch msg.String() {
 			case "j", "enter":
 				m.dialog.errMsg = ""
-				return m, unmarkFileCmd(m.lib, m.dialog.filename)
+				return m, unmarkFileCmd(m.lib, m.dialog.filename, m.dialog.sourcePath)
 			case "n", "esc":
 				m.dialog = ignoredDialog{}
 			}
@@ -927,8 +941,9 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 				if m.lib != nil && len(m.entries) > 0 {
 					e := m.entries[m.cursor]
 					m.dialog = ignoredDialog{
-						mode:     ignoredDialogDelete,
-						filename: e.Name,
+						mode:       ignoredDialogDelete,
+						filename:   e.Name,
+						sourcePath: e.SourcePath,
 					}
 				}
 			case "c":
