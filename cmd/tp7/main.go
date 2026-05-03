@@ -22,7 +22,15 @@ func main() {
 	debug := flag.Bool("d", false, "enable debug logging")
 	flag.Parse()
 
-	cfg, err := config.Load(*configPath)
+	// explicit=true when -c was provided by the user.
+	explicit := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "c" {
+			explicit = true
+		}
+	})
+
+	cfg, err := config.Load(*configPath, explicit)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
