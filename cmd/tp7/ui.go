@@ -21,6 +21,7 @@ var (
 	styleActiveTab = lipgloss.NewStyle().Padding(0, 1).Bold(true).Underline(true)
 	styleDialog    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)
 	styleDialogErr = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
+	styleMultiSel  = lipgloss.NewStyle().Bold(true)
 )
 
 // ── tabs ──────────────────────────────────────────────────────────────────────
@@ -60,9 +61,9 @@ type importActionDoneMsg struct {
 }
 
 type importTopicsLoadedMsg struct {
-	entry  importer.Entry
-	topics []string
-	err    error
+	entries []importer.Entry
+	topics  []string
+	err     error
 }
 
 type loadIgnoredMsg struct {
@@ -71,8 +72,9 @@ type loadIgnoredMsg struct {
 }
 
 type ignoredTopicsLoadedMsg struct {
-	filename   string
-	sourcePath string
+	entries    []storage.IgnoredEntry // batch mode; nil = single
+	filename   string                 // single mode
+	sourcePath string                 // single mode
 	topics     []string
 	err        error
 }
@@ -92,6 +94,18 @@ type libFileDoneMsg struct {
 	err       error
 }
 
+type batchImportDoneMsg struct {
+	topicName string   // non-empty when batch copy
+	removed   []string // entry names removed from F2
+	errMsg    string
+}
+
+type batchIgnoredDoneMsg struct {
+	topicName string                 // non-empty when copied to a topic
+	removed   []storage.IgnoredEntry // entries removed from F3
+	errMsg    string
+}
+
 // ── new-topic dialog ─────────────────────────────────────────────────────────
 
 type newTopicDialog struct {
@@ -107,17 +121,17 @@ func createTopicCmd(lib *storage.Library, name string) tea.Cmd {
 	}
 }
 
-func loadImportTopicsCmd(lib *storage.Library, entry importer.Entry) tea.Cmd {
+func loadImportTopicsCmd(lib *storage.Library, entries []importer.Entry) tea.Cmd {
 	return func() tea.Msg {
 		topics, err := lib.Topics()
 		if err != nil {
-			return importTopicsLoadedMsg{entry: entry, err: err}
+			return importTopicsLoadedMsg{entries: entries, err: err}
 		}
 		names := make([]string, len(topics))
 		for i, t := range topics {
 			names[i] = t.Name
 		}
-		return importTopicsLoadedMsg{entry: entry, topics: names}
+		return importTopicsLoadedMsg{entries: entries, topics: names}
 	}
 }
 
@@ -183,6 +197,20 @@ func loadIgnoredTopicsCmd(lib *storage.Library, filename, sourcePath string) tea
 	}
 }
 
+func loadIgnoredBatchTopicsCmd(lib *storage.Library, entries []storage.IgnoredEntry) tea.Cmd {
+	return func() tea.Msg {
+		topics, err := lib.Topics()
+		if err != nil {
+			return ignoredTopicsLoadedMsg{entries: entries, err: err}
+		}
+		names := make([]string, len(topics))
+		for i, t := range topics {
+			names[i] = t.Name
+		}
+		return ignoredTopicsLoadedMsg{entries: entries, topics: names}
+	}
+}
+
 func copyFromIgnoredCmd(lib *storage.Library, filename, sourcePath, topicName string) tea.Cmd {
 	return func() tea.Msg {
 		if sourcePath == "" {
@@ -217,6 +245,82 @@ func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
 	return func() tea.Msg {
 		files, err := lib.TopicFiles(topicName)
 		return loadFilesMsg{topicName: topicName, files: files, err: err}
+	}
+}
+
+// selRange returns a map with all indices between a and b (inclusive).
+func selRange(a, b int) map[int]bool {
+	sel := make(map[int]bool)
+	if a > b {
+		a, b = b, a
+	}
+	for i := a; i <= b; i++ {
+		sel[i] = true
+	}
+	return sel
+}
+
+func batchIgnoreCmd(lib *storage.Library, entries []importer.Entry) tea.Cmd {
+	return func() tea.Msg {
+		var removed []string
+		var errs []string
+		for _, e := range entries {
+			if err := lib.MarkFile(e.Name, storage.ActionIgnore, "", e.Path, e.Size); err != nil {
+				errs = append(errs, fmt.Sprintf("%s: %v", e.Name, err))
+			} else {
+				removed = append(removed, e.Name)
+			}
+		}
+		return batchImportDoneMsg{removed: removed, errMsg: strings.Join(errs, "\n")}
+	}
+}
+
+func batchCopyCmd(lib *storage.Library, entries []importer.Entry, topicName string) tea.Cmd {
+	return func() tea.Msg {
+		var removed []string
+		var errs []string
+		for _, e := range entries {
+			if err := lib.CopyToTopic(topicName, e.Path); err != nil {
+				errs = append(errs, fmt.Sprintf("%s: %v", e.Name, err))
+			} else {
+				removed = append(removed, e.Name)
+			}
+		}
+		return batchImportDoneMsg{topicName: topicName, removed: removed, errMsg: strings.Join(errs, "\n")}
+	}
+}
+
+func batchUnmarkCmd(lib *storage.Library, entries []storage.IgnoredEntry) tea.Cmd {
+	return func() tea.Msg {
+		var removed []storage.IgnoredEntry
+		var errs []string
+		for _, e := range entries {
+			if err := lib.UnmarkFile(e.Name); err != nil {
+				errs = append(errs, fmt.Sprintf("%s: %v", e.Name, err))
+			} else {
+				removed = append(removed, e)
+			}
+		}
+		return batchIgnoredDoneMsg{removed: removed, errMsg: strings.Join(errs, "\n")}
+	}
+}
+
+func batchCopyFromIgnoredCmd(lib *storage.Library, entries []storage.IgnoredEntry, topicName string) tea.Cmd {
+	return func() tea.Msg {
+		var removed []storage.IgnoredEntry
+		var errs []string
+		for _, e := range entries {
+			if e.SourcePath == "" {
+				errs = append(errs, fmt.Sprintf("%s: Quellpfad unbekannt", e.Name))
+				continue
+			}
+			if err := lib.CopyToTopic(topicName, e.SourcePath); err != nil {
+				errs = append(errs, fmt.Sprintf("%s: %v", e.Name, err))
+			} else {
+				removed = append(removed, e)
+			}
+		}
+		return batchIgnoredDoneMsg{topicName: topicName, removed: removed, errMsg: strings.Join(errs, "\n")}
 	}
 }
 
@@ -364,6 +468,36 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 	case ignoredFileDoneMsg:
 		// F3 copied a file to a topic – refresh that topic in F1
 		if msg.topicName == "" || msg.err != nil {
+			return m, nil
+		}
+		for i := range m.topics {
+			if m.topics[i].name == msg.topicName {
+				if m.topics[i].expanded {
+					return m, loadFilesCmd(m.lib, msg.topicName)
+				}
+				m.topics[i].loaded = false
+				break
+			}
+		}
+
+	case batchImportDoneMsg:
+		// F2 batch copy – refresh the destination topic in F1
+		if msg.topicName == "" {
+			return m, nil
+		}
+		for i := range m.topics {
+			if m.topics[i].name == msg.topicName {
+				if m.topics[i].expanded {
+					return m, loadFilesCmd(m.lib, msg.topicName)
+				}
+				m.topics[i].loaded = false
+				break
+			}
+		}
+
+	case batchIgnoredDoneMsg:
+		// F3 batch copy – refresh the destination topic in F1
+		if msg.topicName == "" {
 			return m, nil
 		}
 		for i := range m.topics {
@@ -579,7 +713,7 @@ const (
 
 type importDialog struct {
 	mode        importDialogMode
-	entry       importer.Entry
+	entries     []importer.Entry // always set when dialog is open (len >= 1)
 	topics      []string
 	topicCursor int
 	errMsg      string
@@ -591,6 +725,8 @@ type importModel struct {
 	lib       *storage.Library
 	entries   []importer.Entry
 	cursor    int
+	sel       map[int]bool
+	anchor    int
 	height    int
 	width     int
 	status    string
@@ -611,6 +747,23 @@ func (m importModel) awaitEntries() tea.Cmd {
 	return func() tea.Msg { return entriesMsg(<-ch) }
 }
 
+// selectedEntries returns the selected entries (or the cursor entry if no selection).
+func (m importModel) selectedEntries() []importer.Entry {
+	if len(m.sel) == 0 {
+		if m.cursor < len(m.entries) {
+			return []importer.Entry{m.entries[m.cursor]}
+		}
+		return nil
+	}
+	entries := make([]importer.Entry, 0, len(m.sel))
+	for i, e := range m.entries {
+		if m.sel[i] {
+			entries = append(entries, e)
+		}
+	}
+	return entries
+}
+
 func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -618,6 +771,7 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 		m.width = msg.Width
 	case entriesMsg:
 		m.entries = []importer.Entry(msg)
+		m.sel = nil
 		if m.cursor >= len(m.entries) {
 			m.cursor = max(0, len(m.entries)-1)
 		}
@@ -636,9 +790,9 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 			return m, nil
 		}
 		m.dialog = importDialog{
-			mode:   importDialogCopy,
-			entry:  msg.entry,
-			topics: msg.topics,
+			mode:    importDialogCopy,
+			entries: msg.entries,
+			topics:  msg.topics,
 		}
 
 	case importActionDoneMsg:
@@ -647,6 +801,7 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 			return m, nil
 		}
 		m.dialog = importDialog{}
+		m.sel = nil
 		// remove the handled entry from the list
 		for i, e := range m.entries {
 			if e.Name == msg.entryName {
@@ -658,6 +813,51 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 			m.cursor = max(0, len(m.entries)-1)
 		}
 		m.status = fmt.Sprintf("%d neue Aufnahme(n)", len(m.entries))
+
+	case batchImportDoneMsg:
+		if msg.errMsg != "" && len(msg.removed) == 0 {
+			m.dialog.errMsg = msg.errMsg
+			return m, nil
+		}
+		m.dialog = importDialog{}
+		m.sel = nil
+		removed := make(map[string]bool, len(msg.removed))
+		for _, name := range msg.removed {
+			removed[name] = true
+		}
+		var remaining []importer.Entry
+		for _, e := range m.entries {
+			if !removed[e.Name] {
+				remaining = append(remaining, e)
+			}
+		}
+		m.entries = remaining
+		if m.cursor >= len(m.entries) {
+			m.cursor = max(0, len(m.entries)-1)
+		}
+		if msg.errMsg != "" {
+			m.status = fmt.Sprintf("Fehler: %s", msg.errMsg)
+		} else {
+			m.status = fmt.Sprintf("%d neue Aufnahme(n)", len(m.entries))
+		}
+
+	case batchIgnoredDoneMsg:
+		// F3 batch-unmark: add removed entries back to F2 if they have a source path.
+		if msg.topicName != "" {
+			return m, nil // was a copy, not an unmark
+		}
+		existing := make(map[string]bool, len(m.entries))
+		for _, e := range m.entries {
+			existing[e.Name] = true
+		}
+		for _, e := range msg.removed {
+			if e.SourcePath != "" && !existing[e.Name] {
+				m.entries = append(m.entries, importer.Entry{Name: e.Name, Path: e.SourcePath, Size: e.Size})
+			}
+		}
+		if len(msg.removed) > 0 {
+			m.status = fmt.Sprintf("%d neue Aufnahme(n)", len(m.entries))
+		}
 
 	case ignoredFileDoneMsg:
 		// An ignored file was un-marked in F3 — add it back to the import list.
@@ -678,7 +878,10 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 			switch msg.String() {
 			case "j", "enter":
 				m.dialog.errMsg = ""
-				return m, ignoreEntryCmd(m.lib, m.dialog.entry)
+				if len(m.dialog.entries) == 1 {
+					return m, ignoreEntryCmd(m.lib, m.dialog.entries[0])
+				}
+				return m, batchIgnoreCmd(m.lib, m.dialog.entries)
 			case "n", "esc":
 				m.dialog = importDialog{}
 			}
@@ -697,7 +900,10 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 			case "enter":
 				topic := m.dialog.topics[m.dialog.topicCursor]
 				m.dialog.errMsg = ""
-				return m, copyEntryCmd(m.lib, m.dialog.entry, topic)
+				if len(m.dialog.entries) == 1 {
+					return m, copyEntryCmd(m.lib, m.dialog.entries[0], topic)
+				}
+				return m, batchCopyCmd(m.lib, m.dialog.entries, topic)
 			case "esc":
 				m.dialog = importDialog{}
 			}
@@ -706,23 +912,44 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 		default: // importDialogNone
 			switch msg.String() {
 			case "up", "k":
+				m.sel = nil
+				m.anchor = m.cursor
 				if m.cursor > 0 {
 					m.cursor--
 				}
 			case "down", "j":
+				m.sel = nil
+				m.anchor = m.cursor
 				if m.cursor < len(m.entries)-1 {
 					m.cursor++
 				}
+			case "shift+up":
+				if m.cursor > 0 {
+					m.cursor--
+					m.sel = selRange(m.anchor, m.cursor)
+				}
+			case "shift+down":
+				if m.cursor < len(m.entries)-1 {
+					m.cursor++
+					m.sel = selRange(m.anchor, m.cursor)
+				}
+			case "a":
+				if len(m.entries) > 0 {
+					m.sel = selRange(0, len(m.entries)-1)
+					m.anchor = m.cursor
+				}
+			case "d":
+				m.sel = nil
 			case "i":
 				if m.lib != nil && len(m.entries) > 0 {
 					m.dialog = importDialog{
-						mode:  importDialogIgnore,
-						entry: m.entries[m.cursor],
+						mode:    importDialogIgnore,
+						entries: m.selectedEntries(),
 					}
 				}
 			case "c":
 				if m.lib != nil && len(m.entries) > 0 {
-					return m, loadImportTopicsCmd(m.lib, m.entries[m.cursor])
+					return m, loadImportTopicsCmd(m.lib, m.selectedEntries())
 				}
 			}
 		}
@@ -745,9 +972,15 @@ func (m importModel) view() string {
 	var out string
 	for i := start; i < start+listHeight && i < len(m.entries); i++ {
 		e := m.entries[i]
-		line := fmt.Sprintf("%-38s  %8s", e.Name, formatSize(e.Size))
+		prefix := "  "
+		if m.sel[i] {
+			prefix = "► "
+		}
+		line := fmt.Sprintf("%s%-38s  %8s", prefix, e.Name, formatSize(e.Size))
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
+		} else if m.sel[i] {
+			out += styleMultiSel.Render(line) + "\n"
 		} else {
 			out += line + "\n"
 		}
@@ -762,17 +995,29 @@ func (m importModel) renderDialog() string {
 	var body string
 	switch m.dialog.mode {
 	case importDialogIgnore:
+		var label string
+		if len(m.dialog.entries) == 1 {
+			label = m.dialog.entries[0].Name
+		} else {
+			label = fmt.Sprintf("%d Aufnahmen", len(m.dialog.entries))
+		}
 		body = fmt.Sprintf(
-			"Aufnahme ignorieren?\n\n"+
+			"Aufnahme(n) ignorieren?\n\n"+
 				styleDim.Render("%s")+"\n\n"+
-				"Die Datei wird nicht kopiert und in Zukunft\n"+
+				"Die Datei(en) werden nicht kopiert und in Zukunft\n"+
 				"nicht mehr in der Liste erscheinen.\n\n"+
 				styleDim.Render("j / Enter bestätigen  •  n / Esc abbrechen"),
-			m.dialog.entry.Name,
+			label,
 		)
 	case importDialogCopy:
+		var label string
+		if len(m.dialog.entries) == 1 {
+			label = m.dialog.entries[0].Name
+		} else {
+			label = fmt.Sprintf("%d Aufnahmen", len(m.dialog.entries))
+		}
 		body = fmt.Sprintf("In welches Topic kopieren?\n\n"+styleDim.Render("%s")+"\n\n",
-			m.dialog.entry.Name)
+			label)
 		for i, t := range m.dialog.topics {
 			line := "  " + t
 			if i == m.dialog.topicCursor {
@@ -801,9 +1046,10 @@ const (
 
 type ignoredDialog struct {
 	mode       ignoredDialogMode
-	filename   string
-	sourcePath string
-	size       int64
+	filename   string                 // single mode
+	sourcePath string                 // single mode
+	size       int64                  // single mode
+	entries    []storage.IgnoredEntry // batch mode (len > 1)
 	topics     []string
 	cursor     int
 	errMsg     string
@@ -813,6 +1059,8 @@ type ignoredModel struct {
 	lib     *storage.Library
 	entries []storage.IgnoredEntry
 	cursor  int
+	sel     map[int]bool
+	anchor  int
 	height  int
 	width   int
 	status  string
@@ -830,6 +1078,23 @@ func (m ignoredModel) Init() tea.Cmd {
 	return loadIgnoredCmd(m.lib)
 }
 
+// selectedIgnoredEntries returns the selected entries (or the cursor entry if no selection).
+func (m ignoredModel) selectedIgnoredEntries() []storage.IgnoredEntry {
+	if len(m.sel) == 0 {
+		if m.cursor < len(m.entries) {
+			return []storage.IgnoredEntry{m.entries[m.cursor]}
+		}
+		return nil
+	}
+	entries := make([]storage.IgnoredEntry, 0, len(m.sel))
+	for i, e := range m.entries {
+		if m.sel[i] {
+			entries = append(entries, e)
+		}
+	}
+	return entries
+}
+
 func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -842,6 +1107,7 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 			return m, nil
 		}
 		m.entries = msg.entries
+		m.sel = nil
 		if len(m.entries) == 0 {
 			m.status = "Keine ignorierten Dateien"
 		} else {
@@ -872,6 +1138,7 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 			mode:       ignoredDialogCopy,
 			filename:   msg.filename,
 			sourcePath: msg.sourcePath,
+			entries:    msg.entries,
 			topics:     msg.topics,
 		}
 
@@ -881,6 +1148,7 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 			return m, nil
 		}
 		m.dialog = ignoredDialog{}
+		m.sel = nil
 		for i, e := range m.entries {
 			if e.Name == msg.filename {
 				m.entries = append(m.entries[:i], m.entries[i+1:]...)
@@ -896,12 +1164,44 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 			m.status = fmt.Sprintf("%d ignoriert", len(m.entries))
 		}
 
+	case batchIgnoredDoneMsg:
+		if msg.errMsg != "" && len(msg.removed) == 0 {
+			m.dialog.errMsg = msg.errMsg
+			return m, nil
+		}
+		m.dialog = ignoredDialog{}
+		m.sel = nil
+		removed := make(map[string]bool, len(msg.removed))
+		for _, e := range msg.removed {
+			removed[e.Name] = true
+		}
+		var remaining []storage.IgnoredEntry
+		for _, e := range m.entries {
+			if !removed[e.Name] {
+				remaining = append(remaining, e)
+			}
+		}
+		m.entries = remaining
+		if m.cursor >= len(m.entries) {
+			m.cursor = max(0, len(m.entries)-1)
+		}
+		if msg.errMsg != "" {
+			m.status = fmt.Sprintf("Fehler: %s", msg.errMsg)
+		} else if len(m.entries) == 0 {
+			m.status = "Keine ignorierten Dateien"
+		} else {
+			m.status = fmt.Sprintf("%d ignoriert", len(m.entries))
+		}
+
 	case tea.KeyMsg:
 		switch m.dialog.mode {
 		case ignoredDialogDelete:
 			switch msg.String() {
 			case "j", "enter":
 				m.dialog.errMsg = ""
+				if len(m.dialog.entries) > 1 {
+					return m, batchUnmarkCmd(m.lib, m.dialog.entries)
+				}
 				return m, unmarkFileCmd(m.lib, m.dialog.filename, m.dialog.sourcePath, m.dialog.size)
 			case "n", "esc":
 				m.dialog = ignoredDialog{}
@@ -921,6 +1221,9 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 			case "enter":
 				topic := m.dialog.topics[m.dialog.cursor]
 				m.dialog.errMsg = ""
+				if len(m.dialog.entries) > 1 {
+					return m, batchCopyFromIgnoredCmd(m.lib, m.dialog.entries, topic)
+				}
 				return m, copyFromIgnoredCmd(m.lib, m.dialog.filename, m.dialog.sourcePath, topic)
 			case "esc":
 				m.dialog = ignoredDialog{}
@@ -930,27 +1233,60 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 		default: // ignoredDialogNone
 			switch msg.String() {
 			case "up", "k":
+				m.sel = nil
+				m.anchor = m.cursor
 				if m.cursor > 0 {
 					m.cursor--
 				}
 			case "down", "j":
+				m.sel = nil
+				m.anchor = m.cursor
 				if m.cursor < len(m.entries)-1 {
 					m.cursor++
 				}
+			case "shift+up":
+				if m.cursor > 0 {
+					m.cursor--
+					m.sel = selRange(m.anchor, m.cursor)
+				}
+			case "shift+down":
+				if m.cursor < len(m.entries)-1 {
+					m.cursor++
+					m.sel = selRange(m.anchor, m.cursor)
+				}
+			case "a":
+				if len(m.entries) > 0 {
+					m.sel = selRange(0, len(m.entries)-1)
+					m.anchor = m.cursor
+				}
+			case "d":
+				m.sel = nil
 			case "r":
 				return m, loadIgnoredCmd(m.lib)
 			case "delete":
 				if m.lib != nil && len(m.entries) > 0 {
-					e := m.entries[m.cursor]
-					m.dialog = ignoredDialog{
-						mode:       ignoredDialogDelete,
-						filename:   e.Name,
-						sourcePath: e.SourcePath,
-						size:       e.Size,
+					entries := m.selectedIgnoredEntries()
+					if len(entries) > 1 {
+						m.dialog = ignoredDialog{
+							mode:    ignoredDialogDelete,
+							entries: entries,
+						}
+					} else {
+						e := m.entries[m.cursor]
+						m.dialog = ignoredDialog{
+							mode:       ignoredDialogDelete,
+							filename:   e.Name,
+							sourcePath: e.SourcePath,
+							size:       e.Size,
+						}
 					}
 				}
 			case "c":
 				if m.lib != nil && len(m.entries) > 0 {
+					entries := m.selectedIgnoredEntries()
+					if len(entries) > 1 {
+						return m, loadIgnoredBatchTopicsCmd(m.lib, entries)
+					}
 					e := m.entries[m.cursor]
 					return m, loadIgnoredTopicsCmd(m.lib, e.Name, e.SourcePath)
 				}
@@ -977,9 +1313,15 @@ func (m ignoredModel) view() string {
 	}
 	var out string
 	for i := start; i < start+listHeight && i < len(m.entries); i++ {
-		line := m.entries[i].Name
+		prefix := "  "
+		if m.sel[i] {
+			prefix = "► "
+		}
+		line := prefix + m.entries[i].Name
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
+		} else if m.sel[i] {
+			out += styleMultiSel.Render(line) + "\n"
 		} else {
 			out += line + "\n"
 		}
@@ -994,14 +1336,26 @@ func (m ignoredModel) renderDialog() string {
 	var body string
 	switch m.dialog.mode {
 	case ignoredDialogDelete:
-		body = fmt.Sprintf("Markierung entfernen?\n\n%s\n\n%s\n\n%s",
-			styleDim.Render(m.dialog.filename),
-			"Die Datei erscheint wieder in F2.",
+		var label string
+		if len(m.dialog.entries) > 1 {
+			label = fmt.Sprintf("%d Markierungen", len(m.dialog.entries))
+		} else {
+			label = m.dialog.filename
+		}
+		body = fmt.Sprintf("Markierung(en) entfernen?\n\n%s\n\n%s\n\n%s",
+			styleDim.Render(label),
+			"Die Datei(en) erscheinen wieder in F2.",
 			styleDim.Render("j / Enter bestätigen  •  n / Esc abbrechen"),
 		)
 	case ignoredDialogCopy:
+		var label string
+		if len(m.dialog.entries) > 1 {
+			label = fmt.Sprintf("%d Dateien", len(m.dialog.entries))
+		} else {
+			label = m.dialog.filename
+		}
 		body = fmt.Sprintf("In welches Topic kopieren?\n\n%s\n\n",
-			styleDim.Render(m.dialog.filename))
+			styleDim.Render(label))
 		for i, t := range m.dialog.topics {
 			line := "  " + t
 			if i == m.dialog.cursor {
@@ -1129,9 +1483,17 @@ func (m rootModel) View() string {
 	case tabLibrary:
 		status = m.library.status
 	case tabImport:
-		status = m.imports.status
+		if len(m.imports.sel) > 0 {
+			status = fmt.Sprintf("%d ausgewählt  •  ", len(m.imports.sel)) + m.imports.status
+		} else {
+			status = m.imports.status
+		}
 	case tabIgnored:
-		status = m.ignored.status
+		if len(m.ignored.sel) > 0 {
+			status = fmt.Sprintf("%d ausgewählt  •  ", len(m.ignored.sel)) + m.ignored.status
+		} else {
+			status = m.ignored.status
+		}
 	}
 	tabBar := libTab + "  " + impTab + "  " + ignTab + "  " + styleDim.Render(status)
 
@@ -1156,13 +1518,13 @@ func (m rootModel) View() string {
 		}
 	case tabImport:
 		if len(m.imports.entries) > 0 && m.imports.dialog.mode == importDialogNone {
-			footerParts = "↑/↓ scrollen • i ignorieren • c kopieren • q beenden"
+			footerParts = "↑/↓ scrollen • Shift+↑/↓ Mehrfachauswahl • a alle • d keine • i ignorieren • c kopieren • q beenden"
 		} else {
 			footerParts = "↑/↓ scrollen • q beenden"
 		}
 	case tabIgnored:
 		if len(m.ignored.entries) > 0 && m.ignored.dialog.mode == ignoredDialogNone {
-			footerParts = "↑/↓ scrollen • c in Topic • Entf entmarkieren • r neu laden • q beenden"
+			footerParts = "↑/↓ scrollen • Shift+↑/↓ Mehrfachauswahl • a alle • d keine • c in Topic • Entf entmarkieren • r neu laden • q beenden"
 		} else {
 			footerParts = "↑/↓ scrollen • r neu laden • q beenden"
 		}
