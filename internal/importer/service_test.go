@@ -33,7 +33,7 @@ func TestFilterMarked_AllMarked(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 	for _, e := range sampleEntries {
-		if err := lib.MarkFile(e.Name, storage.ActionIgnore, "", ""); err != nil {
+		if err := lib.MarkFile(e.Name, storage.ActionIgnore, "", "", 0); err != nil {
 			t.Fatalf("MarkFile(%q): %v", e.Name, err)
 		}
 	}
@@ -54,7 +54,7 @@ func TestFilterMarked_SomeMarked(t *testing.T) {
 	// mark the first 3 entries
 	marked := sampleEntries[:3]
 	for _, e := range marked {
-		if err := lib.MarkFile(e.Name, storage.ActionIgnore, "", ""); err != nil {
+		if err := lib.MarkFile(e.Name, storage.ActionIgnore, "", "", 0); err != nil {
 			t.Fatalf("MarkFile(%q): %v", e.Name, err)
 		}
 	}

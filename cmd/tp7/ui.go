@@ -80,6 +80,7 @@ type ignoredTopicsLoadedMsg struct {
 type ignoredFileDoneMsg struct {
 	filename   string
 	sourcePath string // non-empty when action was unmark
+	size       int64  // file size, set when action was unmark
 	topicName  string // non-empty = was copied to a topic
 	err        error
 }
@@ -122,7 +123,7 @@ func loadImportTopicsCmd(lib *storage.Library, entry importer.Entry) tea.Cmd {
 
 func ignoreEntryCmd(lib *storage.Library, entry importer.Entry) tea.Cmd {
 	return func() tea.Msg {
-		err := lib.MarkFile(entry.Name, storage.ActionIgnore, "", entry.Path)
+		err := lib.MarkFile(entry.Name, storage.ActionIgnore, "", entry.Path, entry.Size)
 		return importActionDoneMsg{entryName: entry.Name, err: err}
 	}
 }
@@ -155,16 +156,16 @@ func ignoreInTopicCmd(lib *storage.Library, topicName, filename string) tea.Cmd 
 	return func() tea.Msg {
 		err := lib.RemoveFromTopic(topicName, filename)
 		if err == nil {
-			err = lib.MarkFile(filename, storage.ActionIgnore, "", "")
+			err = lib.MarkFile(filename, storage.ActionIgnore, "", "", 0)
 		}
 		return libFileDoneMsg{topicName: topicName, fileName: filename, isIgnore: true, err: err}
 	}
 }
 
-func unmarkFileCmd(lib *storage.Library, filename, sourcePath string) tea.Cmd {
+func unmarkFileCmd(lib *storage.Library, filename, sourcePath string, size int64) tea.Cmd {
 	return func() tea.Msg {
 		err := lib.UnmarkFile(filename)
-		return ignoredFileDoneMsg{filename: filename, sourcePath: sourcePath, err: err}
+		return ignoredFileDoneMsg{filename: filename, sourcePath: sourcePath, size: size, err: err}
 	}
 }
 
@@ -668,7 +669,7 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 				return m, nil // already present
 			}
 		}
-		m.entries = append(m.entries, importer.Entry{Name: msg.filename, Path: msg.sourcePath})
+		m.entries = append(m.entries, importer.Entry{Name: msg.filename, Path: msg.sourcePath, Size: msg.size})
 		m.status = fmt.Sprintf("%d neue Aufnahme(n)", len(m.entries))
 
 	case tea.KeyMsg:
@@ -802,6 +803,7 @@ type ignoredDialog struct {
 	mode       ignoredDialogMode
 	filename   string
 	sourcePath string
+	size       int64
 	topics     []string
 	cursor     int
 	errMsg     string
@@ -900,7 +902,7 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 			switch msg.String() {
 			case "j", "enter":
 				m.dialog.errMsg = ""
-				return m, unmarkFileCmd(m.lib, m.dialog.filename, m.dialog.sourcePath)
+				return m, unmarkFileCmd(m.lib, m.dialog.filename, m.dialog.sourcePath, m.dialog.size)
 			case "n", "esc":
 				m.dialog = ignoredDialog{}
 			}
@@ -944,6 +946,7 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 						mode:       ignoredDialogDelete,
 						filename:   e.Name,
 						sourcePath: e.SourcePath,
+						size:       e.Size,
 					}
 				}
 			case "c":

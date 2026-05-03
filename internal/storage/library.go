@@ -27,6 +27,8 @@ type Mark struct {
 	Topic string `yaml:"topic,omitempty"`
 	// SourcePath holds the original device path when Action == ActionIgnore.
 	SourcePath string `yaml:"source_path,omitempty"`
+	// Size holds the file size in bytes (stored for display purposes).
+	Size int64 `yaml:"size,omitempty"`
 }
 
 // Library is a collection of topics anchored to a directory on disk.
@@ -126,17 +128,17 @@ func (l *Library) CopyToTopic(topicName, srcPath string) error {
 		return fmt.Errorf("closing destination: %w", err)
 	}
 
-	return l.MarkFile(filename, ActionCopied, topicName, "")
+	return l.MarkFile(filename, ActionCopied, topicName, "", 0)
 }
 
 // MarkFile records a decision for a voice memo file.
 // For ActionCopied, topic must be the topic name; for ActionIgnore it is ignored.
 // sourcePath may be set to the original device path when action is ActionIgnore.
-func (l *Library) MarkFile(filename string, action MarkAction, topic, sourcePath string) error {
+func (l *Library) MarkFile(filename string, action MarkAction, topic, sourcePath string, size int64) error {
 	if filename == "" {
 		return fmt.Errorf("filename must not be empty")
 	}
-	m := Mark{Action: action, SourcePath: sourcePath}
+	m := Mark{Action: action, SourcePath: sourcePath, Size: size}
 	if action == ActionCopied {
 		m.Topic = topic
 	}
@@ -175,10 +177,11 @@ func (l *Library) ReadMark(filename string) (*Mark, error) {
 	return &m, nil
 }
 
-// IgnoredEntry holds the name and original device path of an ignored recording.
+// IgnoredEntry holds the name, original device path, and size of an ignored recording.
 type IgnoredEntry struct {
 	Name       string
 	SourcePath string
+	Size       int64
 }
 
 // ListIgnored returns all recordings that have been marked with ActionIgnore.
@@ -202,7 +205,7 @@ func (l *Library) ListIgnored() ([]IgnoredEntry, error) {
 			continue
 		}
 		if m.Action == ActionIgnore {
-			result = append(result, IgnoredEntry{Name: original, SourcePath: m.SourcePath})
+			result = append(result, IgnoredEntry{Name: original, SourcePath: m.SourcePath, Size: m.Size})
 		}
 	}
 	return result, nil
