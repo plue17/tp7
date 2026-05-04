@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -70,6 +71,7 @@ func (d *DeviceMount) ListRecordings() ([]Entry, error) {
 			Path: filepath.Join(full, de.Name()),
 		})
 	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name > entries[j].Name })
 	return entries, nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -97,6 +98,7 @@ func (l *Library) TopicFiles(topicName string) ([]string, error) {
 			files = append(files, e.Name())
 		}
 	}
+	sort.Slice(files, func(i, j int) bool { return files[i] > files[j] })
 	return files, nil
 }
 
@@ -227,6 +229,7 @@ func (l *Library) ListIgnored() ([]IgnoredEntry, error) {
 			result = append(result, IgnoredEntry{Name: original, SourcePath: m.SourcePath, Size: m.Size, DisplayName: m.DisplayName})
 		}
 	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Name > result[j].Name })
 	return result, nil
 }
 
