@@ -21,6 +21,7 @@ var (
 	styleTitle     = lipgloss.NewStyle().Bold(true)
 	styleSelected  = lipgloss.NewStyle().Reverse(true)
 	styleDim       = lipgloss.NewStyle().Faint(true)
+	styleFileName  = lipgloss.NewStyle().Foreground(lipgloss.Color("15")) // bright white
 	styleTab       = lipgloss.NewStyle().Padding(0, 1)
 	styleActiveTab = lipgloss.NewStyle().Padding(0, 1).Bold(true).Underline(true)
 	styleDialog    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)
@@ -43,7 +44,10 @@ const (
 
 type entriesMsg []importer.Entry
 
-type playbackDoneMsg struct{ err error }
+type playbackDoneMsg struct {
+	path string
+	err  error
+}
 type playbackTickMsg struct{}
 
 type loadTopicsMsg struct {
@@ -240,6 +244,34 @@ func formatLabelAligned(filename, displayName string, availWidth int, suffix str
 	return name + strings.Repeat(" ", gap) + right
 }
 
+// formatLabelAlignedStyled is like formatLabelAligned but renders the name in
+// bright white and the right portion (timestamp + duration) in dim/gray.
+func formatLabelAlignedStyled(filename, displayName string, availWidth int, suffix string) string {
+	ts := storage.DefaultDisplayName(filename)
+	if availWidth <= 0 || ts == "" {
+		label := formatLabel(filename, displayName)
+		if suffix != "" {
+			return styleFileName.Render(label) + styleDim.Render("  "+suffix)
+		}
+		return styleFileName.Render(label)
+	}
+	right := ts
+	if suffix != "" {
+		right = ts + "  " + suffix
+	}
+	isUserName := displayName != "" && displayName != ts
+	name := displayName
+	if !isUserName {
+		name = "no description"
+	}
+	gap := availWidth - lipgloss.Width(name) - lipgloss.Width(right)
+	if gap < 1 {
+		name = string([]rune(name)[:max(0, availWidth-lipgloss.Width(right)-1)])
+		gap = 1
+	}
+	return styleFileName.Render(name) + strings.Repeat(" ", gap) + styleDim.Render(right)
+}
+
 // preferredName returns the display name from the map when present,
 // then falls back to the timestamp parsed from the filename, then the raw filename.
 func preferredName(filename string, displayNames map[string]string) string {
@@ -381,11 +413,11 @@ func playCmd(p *playback.Player, path string) tea.Cmd {
 		done, err := p.Play(path)
 		if err != nil {
 			slog.Debug("playCmd: Play() error", "path", path, "err", err)
-			return playbackDoneMsg{err: err}
+			return playbackDoneMsg{path: path, err: err}
 		}
 		err = <-done
 		slog.Debug("playCmd: done", "path", path, "err", err)
-		return playbackDoneMsg{err: err}
+		return playbackDoneMsg{path: path, err: err}
 	}
 }
 
@@ -477,8 +509,15 @@ func (ps *playerState) onTick() bool {
 }
 
 // onDone clears playback state when playback ends.
-func (ps *playerState) onDone() {
-	slog.Debug("playerState.onDone", "path", ps.playingPath)
+// path is the path from the playbackDoneMsg; it is compared against
+// ps.playingPath so that a stale ErrStopped from a preempted session
+// does not clear the state of a newly started session.
+func (ps *playerState) onDone(path string) {
+	slog.Debug("playerState.onDone", "msgPath", path, "curPath", ps.playingPath)
+	if path != ps.playingPath {
+		slog.Debug("playerState.onDone: stale, ignoring")
+		return
+	}
 	ps.playingPath = ""
 	ps.playPos = 0
 	ps.playDur = 0
@@ -1160,7 +1199,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		}
 
 	case playbackDoneMsg:
-		m.ps.onDone()
+		m.ps.onDone(msg.path)
 		if msg.err != nil && msg.err != playback.ErrStopped {
 			m.status = fmt.Sprintf("Playback error: %v", msg.err)
 		}
@@ -1251,13 +1290,18 @@ func (m libraryModel) view() string {
 			}
 			availWidth := m.width - 5 - lipgloss.Width(prefix)
 			durStr := formatDuration(m.topics[row.topicIdx].durations[f])
-			label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], availWidth, durStr)
-			line = prefix + label
+			if i == m.cursor {
+				label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], availWidth, durStr)
+				line = prefix + label
+			} else {
+				label := formatLabelAlignedStyled(f, m.topics[row.topicIdx].displayNames[f], availWidth, durStr)
+				line = prefix + label
+			}
 		}
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
 		} else if !row.isTopic {
-			out += styleDim.Render(line) + "\n"
+			out += line + "\n"
 		} else {
 			out += line + "\n"
 		}
@@ -1584,7 +1628,7 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 		}
 
 	case playbackDoneMsg:
-		m.ps.onDone()
+		m.ps.onDone(msg.path)
 		if msg.err != nil && msg.err != playback.ErrStopped {
 			m.status = fmt.Sprintf("Playback error: %v", msg.err)
 		}
@@ -1634,6 +1678,9 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 		m.sel = nil
 		for i, e := range m.entries {
 			if e.Name == msg.entryName {
+				if m.ps.isPlaying(e.Path) {
+					m.ps.stop()
+				}
 				m.entries = append(m.entries[:i], m.entries[i+1:]...)
 				break
 			}
@@ -1659,6 +1706,13 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 		removed := make(map[string]bool, len(msg.removed))
 		for _, name := range msg.removed {
 			removed[name] = true
+		}
+		// Stop playback if the playing file is among those being removed.
+		for _, e := range m.entries {
+			if removed[e.Name] && m.ps.isPlaying(e.Path) {
+				m.ps.stop()
+				break
+			}
 		}
 		var remaining []importer.Entry
 		for _, e := range m.entries {
@@ -2126,7 +2180,7 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 		}
 
 	case playbackDoneMsg:
-		m.ps.onDone()
+		m.ps.onDone(msg.path)
 		if msg.err != nil && msg.err != playback.ErrStopped {
 			m.status = fmt.Sprintf("Playback error: %v", msg.err)
 		}
