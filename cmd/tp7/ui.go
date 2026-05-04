@@ -26,6 +26,7 @@ var (
 	styleDialog    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)
 	styleDialogErr = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
 	styleMultiSel  = lipgloss.NewStyle().Bold(true)
+	stylePlayIcon  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")) // bright green
 )
 
 // ── tabs ──────────────────────────────────────────────────────────────────────
@@ -414,6 +415,7 @@ type playerState struct {
 	playingPath string
 	playPos     time.Duration
 	playDur     time.Duration
+	paused      bool
 }
 
 func newPlayerState() playerState {
@@ -428,8 +430,15 @@ func (ps *playerState) toggle(path string) tea.Cmd {
 		return nil
 	}
 	if ps.playingPath == path {
-		slog.Debug("playerState.toggle: stopping", "path", path)
-		ps.stop()
+		if ps.paused {
+			slog.Debug("playerState.toggle: resuming", "path", path)
+			ps.player.Resume()
+			ps.paused = false
+			return tickCmd()
+		}
+		slog.Debug("playerState.toggle: pausing", "path", path)
+		ps.player.Pause()
+		ps.paused = true
 		return nil
 	}
 	slog.Debug("playerState.toggle: starting", "path", path, "prev", ps.playingPath)
@@ -437,6 +446,7 @@ func (ps *playerState) toggle(path string) tea.Cmd {
 	ps.playingPath = path
 	ps.playPos = 0
 	ps.playDur = 0
+	ps.paused = false
 	return tea.Batch(playCmd(ps.player, path), tickCmd())
 }
 
@@ -447,6 +457,7 @@ func (ps *playerState) stop() {
 	ps.playingPath = ""
 	ps.playPos = 0
 	ps.playDur = 0
+	ps.paused = false
 }
 
 // seek moves playback by offset (positive = forward, negative = backward).
@@ -471,6 +482,7 @@ func (ps *playerState) onDone() {
 	ps.playingPath = ""
 	ps.playPos = 0
 	ps.playDur = 0
+	ps.paused = false
 }
 
 // isPlaying reports whether path is the currently playing file.
@@ -829,9 +841,17 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 			}
 		}
 	case "left":
-		m.ps.seek(-10 * time.Second)
+		m.ps.seek(-5 * time.Second)
 	case "right":
-		m.ps.seek(10 * time.Second)
+		m.ps.seek(5 * time.Second)
+	case "shift+left":
+		m.ps.seek(-30 * time.Second)
+	case "shift+right":
+		m.ps.seek(30 * time.Second)
+	case "ctrl+left":
+		m.ps.seek(-60 * time.Second)
+	case "ctrl+right":
+		m.ps.seek(60 * time.Second)
 	case " ":
 		if m.cursor < len(rows) {
 			row := rows[m.cursor]
@@ -1487,9 +1507,17 @@ func (m importModel) handleNormalKey(msg tea.KeyMsg) (importModel, tea.Cmd) {
 			}
 		}
 	case "left":
-		m.ps.seek(-10 * time.Second)
+		m.ps.seek(-5 * time.Second)
 	case "right":
-		m.ps.seek(10 * time.Second)
+		m.ps.seek(5 * time.Second)
+	case "shift+left":
+		m.ps.seek(-30 * time.Second)
+	case "shift+right":
+		m.ps.seek(30 * time.Second)
+	case "ctrl+left":
+		m.ps.seek(-60 * time.Second)
+	case "ctrl+right":
+		m.ps.seek(60 * time.Second)
 	case "i":
 		if m.lib != nil && len(m.entries) > 0 {
 			m.dialog = importDialog{
@@ -1985,9 +2013,17 @@ func (m ignoredModel) handleNormalKey(msg tea.KeyMsg) (ignoredModel, tea.Cmd) {
 			}
 		}
 	case "left":
-		m.ps.seek(-10 * time.Second)
+		m.ps.seek(-5 * time.Second)
 	case "right":
-		m.ps.seek(10 * time.Second)
+		m.ps.seek(5 * time.Second)
+	case "shift+left":
+		m.ps.seek(-30 * time.Second)
+	case "shift+right":
+		m.ps.seek(30 * time.Second)
+	case "ctrl+left":
+		m.ps.seek(-60 * time.Second)
+	case "ctrl+right":
+		m.ps.seek(60 * time.Second)
 	case "r":
 		if m.lib != nil && m.cursor < len(m.entries) {
 			e := m.entries[m.cursor]
@@ -2510,7 +2546,7 @@ func (m rootModel) View() string {
 		libRows := m.library.buildRows()
 		onFile := len(libRows) > 0 && m.library.cursor < len(libRows) && !libRows[m.library.cursor].isTopic
 		if onFile {
-			footerLines[1] = "Space play/stop  •  ←/→ seek 10s  •  i ignore  •  Del delete"
+			footerLines[1] = "Space pause/resume  •  ←/→ 5s  Shift 30s  Ctrl 1min  •  i ignore  •  Del delete"
 			footerLines[2] = "n new topic  •  m move  •  r rename"
 		} else {
 			footerLines[1] = "↑/↓ scroll  •  Enter expand"
@@ -2518,7 +2554,7 @@ func (m rootModel) View() string {
 		}
 	case tabImport:
 		if len(m.imports.entries) > 0 && m.imports.dialog.mode == importDialogNone {
-			footerLines[1] = "Space play/stop  •  ←/→ seek 10s  •  ↑/↓ scroll"
+			footerLines[1] = "Space pause/resume  •  ←/→ 5s  Shift 30s  Ctrl 1min  •  ↑/↓ scroll"
 			footerLines[2] = "Shift+↑/↓ multi-select  •  a all  •  d none  •  i ignore  •  c copy  •  r rename"
 		} else {
 			footerLines[1] = "↑/↓ scroll"
@@ -2526,7 +2562,7 @@ func (m rootModel) View() string {
 	case tabIgnored:
 		if len(m.ignored.entries) > 0 && m.ignored.dialog.mode == ignoredDialogNone {
 			footerLines[0] = "1/2/3 switch tab  •  q quit  •  a all  •  d none"
-			footerLines[1] = "Space play/stop  •  ←/→ seek 10s  •  ↑/↓ scroll"
+			footerLines[1] = "Space pause/resume  •  ←/→ 5s  Shift 30s  Ctrl 1min  •  ↑/↓ scroll"
 			footerLines[2] = "Shift+↑/↓ multi-select  •  c copy to topic  •  Del unmark  •  r rename"
 		} else {
 			footerLines[1] = "↑/↓ scroll"
@@ -2560,7 +2596,11 @@ func (m rootModel) playbackLine() string {
 	if ps == nil || ps.playingPath == "" {
 		return ""
 	}
-	line := "▶  " + ps.timeLabel()
+	icon := "▶"
+	if ps.paused {
+		icon = "⏸"
+	}
+	line := stylePlayIcon.Render(icon) + "  " + ps.timeLabel()
 	if bar := ps.progressBar(20); bar != "" {
 		line += "  " + bar
 	}

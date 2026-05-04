@@ -37,6 +37,7 @@ func initSpeaker(rate beep.SampleRate) error {
 // playSession represents a single active playback session.
 type playSession struct {
 	done       chan error
+	ctrl       *beep.Ctrl
 	streamer   beep.StreamSeekCloser
 	file       *os.File
 	sampleRate beep.SampleRate
@@ -101,13 +102,15 @@ func (p *Player) Play(path string) (<-chan error, error) {
 	}
 
 	// Resample if the file's rate differs from the speaker's rate.
-	var playStreamer beep.Streamer = streamer
+	var baseStreamer beep.Streamer = streamer
 	if format.SampleRate != speakerRate {
-		playStreamer = beep.Resample(4, format.SampleRate, speakerRate, streamer)
+		baseStreamer = beep.Resample(4, format.SampleRate, speakerRate, streamer)
 	}
+	ctrl := &beep.Ctrl{Streamer: baseStreamer}
 
 	sess := &playSession{
 		done:       make(chan error, 1),
+		ctrl:       ctrl,
 		streamer:   streamer,
 		file:       f,
 		sampleRate: format.SampleRate,
@@ -118,7 +121,7 @@ func (p *Player) Play(path string) (<-chan error, error) {
 	p.path = path
 	p.mu.Unlock()
 
-	speaker.Play(beep.Seq(playStreamer, beep.Callback(func() {
+	speaker.Play(beep.Seq(ctrl, beep.Callback(func() {
 		p.mu.Lock()
 		isCurrent := p.sess == sess
 		if isCurrent {
@@ -171,6 +174,47 @@ func (p *Player) Seek(offset time.Duration) {
 	}
 	_ = sess.streamer.Seek(newPos)
 	speaker.Unlock()
+}
+
+// Pause suspends audio output without losing the playback position.
+// It is a no-op when nothing is playing or already paused.
+func (p *Player) Pause() {
+	p.mu.Lock()
+	sess := p.sess
+	p.mu.Unlock()
+	if sess == nil {
+		return
+	}
+	speaker.Lock()
+	sess.ctrl.Paused = true
+	speaker.Unlock()
+}
+
+// Resume continues paused playback. It is a no-op when not paused.
+func (p *Player) Resume() {
+	p.mu.Lock()
+	sess := p.sess
+	p.mu.Unlock()
+	if sess == nil {
+		return
+	}
+	speaker.Lock()
+	sess.ctrl.Paused = false
+	speaker.Unlock()
+}
+
+// IsPaused reports whether playback is currently paused.
+func (p *Player) IsPaused() bool {
+	p.mu.Lock()
+	sess := p.sess
+	p.mu.Unlock()
+	if sess == nil {
+		return false
+	}
+	speaker.Lock()
+	paused := sess.ctrl.Paused
+	speaker.Unlock()
+	return paused
 }
 
 // IsPlaying reports whether a file is currently playing.
