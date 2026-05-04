@@ -14,17 +14,27 @@ import (
 
 const markedDir = ".marked"
 
+// ParseFilenameTime extracts the recording timestamp from a filename of the
+// form YYYY-MM-DD_HHMMSS_NNN.ext. Returns the zero Time and false on failure.
+func ParseFilenameTime(filename string) (time.Time, bool) {
+	base := strings.TrimSuffix(filename, filepath.Ext(filename))
+	parts := strings.SplitN(base, "_", 3)
+	if len(parts) < 2 {
+		return time.Time{}, false
+	}
+	t, err := time.Parse("2006-01-02_150405", parts[0]+"_"+parts[1])
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
 // DefaultDisplayName parses the recording timestamp encoded in the filename
 // (format YYYY-MM-DD_HHMMSS_NNN.ext) and returns it as "YYYY-MM-DD HH:MM:SS".
 // Returns an empty string if the filename does not match the expected pattern.
 func DefaultDisplayName(filename string) string {
-	base := strings.TrimSuffix(filename, filepath.Ext(filename))
-	parts := strings.SplitN(base, "_", 3)
-	if len(parts) < 2 {
-		return ""
-	}
-	t, err := time.Parse("2006-01-02_150405", parts[0]+"_"+parts[1])
-	if err != nil {
+	t, ok := ParseFilenameTime(filename)
+	if !ok {
 		return ""
 	}
 	return t.Format("2006-01-02 15:04:05")

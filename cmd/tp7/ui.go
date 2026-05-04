@@ -147,6 +147,36 @@ func loadImportDisplayNamesCmd(lib *storage.Library, names []string) tea.Cmd {
 	}
 }
 
+// timeGroup returns the group label for a recording timestamp relative to now.
+// Groups (exclusive, first match wins):
+//
+//	Today, Yesterday, Last 7 Days, This Month, Last Month, This Year, Older
+func timeGroup(t, now time.Time) string {
+	y, m, d := now.Date()
+	todayStart := time.Date(y, m, d, 0, 0, 0, 0, now.Location())
+	switch {
+	case !t.Before(todayStart):
+		return "Today"
+	case !t.Before(todayStart.AddDate(0, 0, -1)):
+		return "Yesterday"
+	case !t.Before(todayStart.AddDate(0, 0, -7)):
+		return "Last 7 Days"
+	case t.Year() == y && t.Month() == m:
+		return "This Month"
+	case t.Year() == y && t.Month() == m-1 || (m == 1 && t.Year() == y-1 && t.Month() == 12):
+		return "Last Month"
+	case t.Year() == y:
+		return "This Year"
+	default:
+		return "Older"
+	}
+}
+
+// groupHeader renders a subtle section header for a time group.
+func groupHeader(label string) string {
+	return styleDim.Render("  ── "+label+" ──") + "\n"
+}
+
 // formatLabel builds the display label for a voice memo.
 // If displayName is a user-chosen name (different from the default timestamp),
 // it returns "displayName (timestamp)". Otherwise just the timestamp, or the
@@ -1089,8 +1119,32 @@ func (m libraryModel) view() string {
 		start = max(0, len(rows)-listHeight)
 	}
 	var out string
+	now := time.Now()
+	// Pre-compute which file rows start a new time group within their topic.
+	lastGroupByTopic := map[int]string{}
+	groupStarters := map[int]string{} // row index → group label
+	for idx, row := range rows {
+		if row.isTopic {
+			continue
+		}
+		f := m.topics[row.topicIdx].files[row.fileIdx]
+		grp := ""
+		if t, ok := storage.ParseFilenameTime(f); ok {
+			grp = timeGroup(t, now)
+		}
+		if grp != "" && grp != lastGroupByTopic[row.topicIdx] {
+			groupStarters[idx] = grp
+			lastGroupByTopic[row.topicIdx] = grp
+		}
+	}
 	for i := start; i < start+listHeight && i < len(rows); i++ {
 		row := rows[i]
+		// Emit group header if this file row starts a new group.
+		if !row.isTopic {
+			if grp, ok := groupStarters[i]; ok {
+				out += groupHeader(grp)
+			}
+		}
 		var line string
 		if row.isTopic {
 			t := m.topics[row.topicIdx]
@@ -1599,8 +1653,16 @@ func (m importModel) view() string {
 		start = max(0, len(m.entries)-listHeight)
 	}
 	var out string
+	now := time.Now()
+	lastGroup := ""
 	for i := start; i < start+listHeight && i < len(m.entries); i++ {
 		e := m.entries[i]
+		if t, ok := storage.ParseFilenameTime(e.Name); ok {
+			if grp := timeGroup(t, now); grp != lastGroup {
+				out += groupHeader(grp)
+				lastGroup = grp
+			}
+		}
 		prefix := "  "
 		if m.sel[i] {
 			prefix = "► "
@@ -2102,8 +2164,16 @@ func (m ignoredModel) view() string {
 		start = max(0, len(m.entries)-listHeight)
 	}
 	var out string
+	now := time.Now()
+	lastGroup := ""
 	for i := start; i < start+listHeight && i < len(m.entries); i++ {
 		e := m.entries[i]
+		if t, ok := storage.ParseFilenameTime(e.Name); ok {
+			if grp := timeGroup(t, now); grp != lastGroup {
+				out += groupHeader(grp)
+				lastGroup = grp
+			}
+		}
 		prefix := "  "
 		if m.sel[i] {
 			prefix = "► "
