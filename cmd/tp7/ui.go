@@ -54,6 +54,7 @@ type loadFilesMsg struct {
 	topicName    string
 	files        []string
 	displayNames map[string]string
+	durations    map[string]time.Duration
 	err          error
 }
 
@@ -177,6 +178,17 @@ func groupHeader(label string) string {
 	return styleDim.Render("  ── "+label+" ──") + "\n"
 }
 
+// formatDuration formats a time.Duration as hh:mm:ss. Returns "" for zero/negative durations.
+func formatDuration(d time.Duration) string {
+	if d <= 0 {
+		return ""
+	}
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	s := int(d.Seconds()) % 60
+	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+}
+
 // formatLabel builds the display label for a voice memo.
 // If displayName is a user-chosen name (different from the default timestamp),
 // it returns "displayName (timestamp)". Otherwise just the timestamp, or the
@@ -195,26 +207,36 @@ func formatLabel(filename, displayName string) string {
 	return displayName
 }
 
-// formatLabelAligned is like formatLabel but right-aligns the timestamp within
-// availWidth columns: custom name left-aligned, timestamp at the right edge.
+// formatLabelAligned is like formatLabel but right-aligns the timestamp (and an
+// optional suffix) within availWidth columns: name left-aligned, right portion
+// flush to the right edge.  suffix (e.g. WAV duration "01:23:45") is shown two
+// spaces after the timestamp.  Pass an empty string to suppress the suffix.
 // Falls back to formatLabel when availWidth <= 0 or no timestamp can be parsed.
-func formatLabelAligned(filename, displayName string, availWidth int) string {
+func formatLabelAligned(filename, displayName string, availWidth int, suffix string) string {
 	ts := storage.DefaultDisplayName(filename)
 	if availWidth <= 0 || ts == "" {
-		return formatLabel(filename, displayName)
+		label := formatLabel(filename, displayName)
+		if suffix != "" {
+			label += "  " + suffix
+		}
+		return label
+	}
+	right := ts
+	if suffix != "" {
+		right = ts + "  " + suffix
 	}
 	isUserName := displayName != "" && displayName != ts
 	name := displayName
 	if !isUserName {
 		name = "no description"
 	}
-	gap := availWidth - lipgloss.Width(name) - len(ts)
+	gap := availWidth - lipgloss.Width(name) - lipgloss.Width(right)
 	if gap < 1 {
-		// Truncate name to make room for at least one space + timestamp.
-		name = string([]rune(name)[:max(0, availWidth-len(ts)-1)])
+		// Truncate name to make room for at least one space + right portion.
+		name = string([]rune(name)[:max(0, availWidth-lipgloss.Width(right)-1)])
 		gap = 1
 	}
-	return name + strings.Repeat(" ", gap) + ts
+	return name + strings.Repeat(" ", gap) + right
 }
 
 // preferredName returns the display name from the map when present,
@@ -485,7 +507,8 @@ func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
 			return loadFilesMsg{topicName: topicName, err: err}
 		}
 		dn := lib.LoadDisplayNames(files)
-		return loadFilesMsg{topicName: topicName, files: files, displayNames: dn}
+		durs := lib.LoadDurations(topicName, files)
+		return loadFilesMsg{topicName: topicName, files: files, displayNames: dn, durations: durs}
 	}
 }
 
@@ -659,6 +682,7 @@ type topicNode struct {
 	expanded     bool
 	files        []string
 	displayNames map[string]string
+	durations    map[string]time.Duration
 	loaded       bool
 }
 
@@ -982,6 +1006,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			if m.topics[i].name == msg.topicName {
 				m.topics[i].files = msg.files
 				m.topics[i].displayNames = msg.displayNames
+				m.topics[i].durations = msg.durations
 				m.topics[i].loaded = true
 				break
 			}
@@ -1188,7 +1213,8 @@ func (m libraryModel) view() string {
 				prefix = "  ▶ "
 			}
 			availWidth := m.width - 5 - lipgloss.Width(prefix)
-			label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], availWidth)
+			durStr := formatDuration(m.topics[row.topicIdx].durations[f])
+			label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], availWidth, durStr)
 			line = prefix + label
 		}
 		if i == m.cursor {
@@ -1699,7 +1725,7 @@ func (m importModel) view() string {
 		}
 		sizeStr := formatSize(e.Size)
 		const sizeColWidth = 9 // enough for "1023.9 MB"
-		label := formatLabelAligned(e.Name, m.displayNames[e.Name], m.width-5-lipgloss.Width(prefix)-2-sizeColWidth)
+		label := formatLabelAligned(e.Name, m.displayNames[e.Name], m.width-5-lipgloss.Width(prefix)-2-sizeColWidth, "")
 		var line string
 		if m.ps.isPlaying(e.Path) {
 			prefix = "▶ "
@@ -2215,7 +2241,7 @@ func (m ignoredModel) view() string {
 		if m.sel[i] {
 			prefix = "► "
 		}
-		label := formatLabelAligned(e.Name, e.DisplayName, m.width-5-lipgloss.Width(prefix))
+		label := formatLabelAligned(e.Name, e.DisplayName, m.width-5-lipgloss.Width(prefix), "")
 		var line string
 		if e.SourcePath == "" {
 			line = prefix + styleDim.Render(label+"  (no file)")

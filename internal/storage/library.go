@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
@@ -40,6 +41,67 @@ func DefaultDisplayName(filename string) string {
 	return t.Format("2006-01-02 15:04:05")
 }
 
+// WavDuration reads the audio duration from a WAV file by parsing the RIFF/fmt/data
+// chunks. Returns an error for non-WAV files or malformed headers.
+func WavDuration(path string) (time.Duration, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	// Verify the RIFF/WAVE header (12 bytes).
+	var riff [12]byte
+	if _, err := io.ReadFull(f, riff[:]); err != nil {
+		return 0, fmt.Errorf("reading RIFF header: %w", err)
+	}
+	if string(riff[0:4]) != "RIFF" || string(riff[8:12]) != "WAVE" {
+		return 0, fmt.Errorf("%q: not a WAV file", path)
+	}
+
+	var byteRate uint32
+	var dataSize uint32
+	foundData := false
+
+	for !foundData {
+		var id [4]byte
+		var size uint32
+		if _, err := io.ReadFull(f, id[:]); err != nil {
+			return 0, fmt.Errorf("reading chunk id: %w", err)
+		}
+		if err := binary.Read(f, binary.LittleEndian, &size); err != nil {
+			return 0, fmt.Errorf("reading chunk size: %w", err)
+		}
+		switch string(id[:]) {
+		case "fmt ":
+			if size < 16 {
+				return 0, fmt.Errorf("fmt chunk too small (%d bytes)", size)
+			}
+			var buf [16]byte
+			if _, err := io.ReadFull(f, buf[:]); err != nil {
+				return 0, fmt.Errorf("reading fmt chunk: %w", err)
+			}
+			byteRate = binary.LittleEndian.Uint32(buf[8:12])
+			if extra := int64(size) - 16; extra > 0 {
+				if _, err := f.Seek(extra, io.SeekCurrent); err != nil {
+					return 0, fmt.Errorf("seeking past fmt extras: %w", err)
+				}
+			}
+		case "data":
+			dataSize = size
+			foundData = true
+		default:
+			if _, err := f.Seek(int64(size), io.SeekCurrent); err != nil {
+				return 0, fmt.Errorf("seeking past chunk %q: %w", id, err)
+			}
+		}
+	}
+	if byteRate == 0 {
+		return 0, fmt.Errorf("%q: WAV byte rate is zero", path)
+	}
+	return time.Duration(float64(dataSize) / float64(byteRate) * float64(time.Second)), nil
+}
+
 // MarkAction describes what was done with a voice memo.
 type MarkAction string
 
@@ -59,6 +121,8 @@ type Mark struct {
 	Size int64 `yaml:"size,omitempty"`
 	// DisplayName is an optional human-readable name preferred over the raw filename.
 	DisplayName string `yaml:"display_name,omitempty"`
+	// DurationSecs holds the audio duration in seconds (WAV files only).
+	DurationSecs float64 `yaml:"duration_secs,omitempty"`
 }
 
 // Library is a collection of topics anchored to a directory on disk.
@@ -164,7 +228,28 @@ func (l *Library) CopyToTopic(topicName, srcPath string) error {
 		return fmt.Errorf("closing destination: %w", err)
 	}
 
-	return l.MarkFile(filename, ActionCopied, topicName, srcPath, 0)
+	if err := l.MarkFile(filename, ActionCopied, topicName, srcPath, 0); err != nil {
+		return err
+	}
+	l.storeDuration(filename, dst)
+	return nil
+}
+
+// storeDuration tries to read the WAV duration for path and write it to the mark file.
+// Errors are silently ignored — duration is best-effort.
+func (l *Library) storeDuration(filename, wavPath string) {
+	dur, err := WavDuration(wavPath)
+	if err != nil || dur <= 0 {
+		return
+	}
+	m, err := l.ReadMark(filename)
+	if err != nil || m == nil {
+		return
+	}
+	m.DurationSecs = dur.Seconds()
+	if data, err := yaml.Marshal(m); err == nil {
+		_ = os.WriteFile(l.markFilePath(filename), data, 0o644)
+	}
 }
 
 // MarkFile records a decision for a voice memo file.
@@ -175,16 +260,17 @@ func (l *Library) MarkFile(filename string, action MarkAction, topic, sourcePath
 	if filename == "" {
 		return fmt.Errorf("filename must not be empty")
 	}
-	// Preserve an existing display name if one has been set,
-	// otherwise fall back to the timestamp encoded in the filename.
+	// Preserve existing display name and duration from any prior mark.
 	var displayName string
+	var durationSecs float64
 	if existing, err := l.ReadMark(filename); err == nil && existing != nil {
 		displayName = existing.DisplayName
+		durationSecs = existing.DurationSecs
 	}
 	if displayName == "" {
 		displayName = DefaultDisplayName(filename)
 	}
-	m := Mark{Action: action, SourcePath: sourcePath, Size: size, DisplayName: displayName}
+	m := Mark{Action: action, SourcePath: sourcePath, Size: size, DisplayName: displayName, DurationSecs: durationSecs}
 	if action == ActionCopied {
 		m.Topic = topic
 	}
@@ -298,6 +384,35 @@ func (l *Library) LoadDisplayNames(filenames []string) map[string]string {
 		}
 	}
 	return dn
+}
+
+// LoadDurations returns a map of filename -> audio duration for the given topic files.
+// If a mark does not yet contain a duration, it attempts to read it from the WAV file
+// on disk and updates the mark in place (best-effort).
+func (l *Library) LoadDurations(topicName string, filenames []string) map[string]time.Duration {
+	result := make(map[string]time.Duration)
+	for _, f := range filenames {
+		m, err := l.ReadMark(f)
+		if err != nil || m == nil {
+			continue
+		}
+		if m.DurationSecs > 0 {
+			result[f] = time.Duration(m.DurationSecs * float64(time.Second))
+			continue
+		}
+		// Not yet stored — read from the WAV file and persist.
+		wavPath := filepath.Join(l.Path, topicName, f)
+		dur, err := WavDuration(wavPath)
+		if err != nil || dur <= 0 {
+			continue
+		}
+		result[f] = dur
+		m.DurationSecs = dur.Seconds()
+		if data, err := yaml.Marshal(m); err == nil {
+			_ = os.WriteFile(l.markFilePath(f), data, 0o644)
+		}
+	}
+	return result
 }
 
 // UnmarkFile removes the decision record for a voice memo file.
