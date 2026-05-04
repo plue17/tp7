@@ -7,11 +7,28 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 const markedDir = ".marked"
+
+// DefaultDisplayName parses the recording timestamp encoded in the filename
+// (format YYYY-MM-DD_HHMMSS_NNN.ext) and returns it as "YYYY-MM-DD HH:MM:SS".
+// Returns an empty string if the filename does not match the expected pattern.
+func DefaultDisplayName(filename string) string {
+	base := strings.TrimSuffix(filename, filepath.Ext(filename))
+	parts := strings.SplitN(base, "_", 3)
+	if len(parts) < 2 {
+		return ""
+	}
+	t, err := time.Parse("2006-01-02_150405", parts[0]+"_"+parts[1])
+	if err != nil {
+		return ""
+	}
+	return t.Format("2006-01-02 15:04:05")
+}
 
 // MarkAction describes what was done with a voice memo.
 type MarkAction string
@@ -148,10 +165,14 @@ func (l *Library) MarkFile(filename string, action MarkAction, topic, sourcePath
 	if filename == "" {
 		return fmt.Errorf("filename must not be empty")
 	}
-	// Preserve an existing display name if one has been set.
+	// Preserve an existing display name if one has been set,
+	// otherwise fall back to the timestamp encoded in the filename.
 	var displayName string
 	if existing, err := l.ReadMark(filename); err == nil && existing != nil {
 		displayName = existing.DisplayName
+	}
+	if displayName == "" {
+		displayName = DefaultDisplayName(filename)
 	}
 	m := Mark{Action: action, SourcePath: sourcePath, Size: size, DisplayName: displayName}
 	if action == ActionCopied {

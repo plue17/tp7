@@ -147,12 +147,28 @@ func loadImportDisplayNamesCmd(lib *storage.Library, names []string) tea.Cmd {
 	}
 }
 
-// preferredName returns displayName from the map when present, otherwise filename.
-func preferredName(filename string, displayNames map[string]string) string {
-	if dn, ok := displayNames[filename]; ok && dn != "" {
-		return dn
+// formatLabel builds the display label for a voice memo.
+// If displayName is a user-chosen name (different from the default timestamp),
+// it returns "displayName (timestamp)". Otherwise just the timestamp, or the
+// raw filename if no timestamp can be parsed.
+func formatLabel(filename, displayName string) string {
+	ts := storage.DefaultDisplayName(filename)
+	if displayName == "" || displayName == ts {
+		if ts != "" {
+			return ts
+		}
+		return filename
 	}
-	return filename
+	if ts != "" {
+		return displayName + " (" + ts + ")"
+	}
+	return displayName
+}
+
+// preferredName returns the display name from the map when present,
+// then falls back to the timestamp parsed from the filename, then the raw filename.
+func preferredName(filename string, displayNames map[string]string) string {
+	return formatLabel(filename, displayNames[filename])
 }
 
 // ── new-topic dialog ─────────────────────────────────────────────────────────
@@ -2092,10 +2108,7 @@ func (m ignoredModel) view() string {
 		if m.sel[i] {
 			prefix = "► "
 		}
-		label := e.DisplayName
-		if label == "" {
-			label = e.Name
-		}
+		label := formatLabel(e.Name, e.DisplayName)
 		var line string
 		if e.SourcePath == "" {
 			line = prefix + styleDim.Render(label+"  (no file)")
