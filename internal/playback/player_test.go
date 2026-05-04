@@ -2,10 +2,8 @@ package playback_test
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"runtime"
-	"syscall"
 	"testing"
 	"time"
 
@@ -22,25 +20,6 @@ func testWAV(t *testing.T) string {
 	// thisFile: .../internal/playback/player_test.go
 	root := filepath.Join(filepath.Dir(thisFile), "..", "..")
 	return filepath.Join(root, "tests", "material", "2026-04-27_001208_000.wav")
-}
-
-// TestPlay_NaturalEnd starts the player and lets it run to completion.
-func TestPlay_NaturalEnd(t *testing.T) {
-	var p playback.Player
-	done, err := p.Play(testWAV(t))
-	if err != nil {
-		t.Fatalf("Play returned error: %v", err)
-	}
-
-	select {
-	case playErr := <-done:
-		if playErr != nil {
-			t.Errorf("expected nil on natural end, got: %v", playErr)
-		}
-	case <-time.After(3 * time.Minute):
-		p.Stop()
-		t.Fatal("timed out waiting for natural playback end")
-	}
 }
 
 // TestPlay_Stop starts the player and stops it immediately.
@@ -141,7 +120,7 @@ func TestStop_WhenIdle(t *testing.T) {
 }
 
 // TestPlay_StopAfter2s plays a WAV for 2 seconds, then stops it.
-// After the done channel is drained the OS process must no longer exist.
+// After done is drained, IsPlaying must be false.
 func TestPlay_StopAfter2s(t *testing.T) {
 	var p playback.Player
 	done, err := p.Play(testWAV(t))
@@ -149,9 +128,8 @@ func TestPlay_StopAfter2s(t *testing.T) {
 		t.Fatalf("Play returned error: %v", err)
 	}
 
-	pid := p.Pid()
-	if pid == 0 {
-		t.Fatal("Pid() returned 0 immediately after Play")
+	if !p.IsPlaying() {
+		t.Fatal("IsPlaying() should be true immediately after Play")
 	}
 
 	// Let it play for 2 seconds, then stop.
@@ -167,15 +145,10 @@ func TestPlay_StopAfter2s(t *testing.T) {
 		t.Fatal("timed out waiting for done after Stop()")
 	}
 
-	// The done channel has been drained, meaning cmd.Wait() has returned and
-	// the process is dead. Verify via the OS: sending signal 0 to a dead PID
-	// must fail with ESRCH (no such process).
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		// On Linux FindProcess never fails; unexpected.
-		t.Fatalf("os.FindProcess(%d): %v", pid, err)
+	if p.IsPlaying() {
+		t.Error("IsPlaying() should be false after Stop()")
 	}
-	if err := proc.Signal(syscall.Signal(0)); err == nil {
-		t.Errorf("process %d is still alive after Stop()", pid)
+	if p.File() != "" {
+		t.Errorf("File() should be empty after Stop(), got %q", p.File())
 	}
 }

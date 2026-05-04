@@ -121,12 +121,12 @@ func (s *Service) run(ctx context.Context, interval time.Duration) {
 				dev = found
 				state = StateConnected
 				slog.Debug("importer: device mounted", "path", dev.MountPath)
-				slog.Info("TP7 connected")
+				slog.Debug("TP7 connected")
 				if entries, err := dev.ListRecordings(); err != nil {
 					slog.Warn("importer: could not list recordings", "err", err)
 				} else {
 					new := s.filterMarked(entries)
-					slog.Info("importer: recordings found", "total", len(entries), "new", len(new))
+					slog.Debug("importer: recordings found", "total", len(entries), "new", len(new))
 					for _, e := range new {
 						slog.Debug("importer: new recording", "name", e.Name, "size", e.Size)
 					}
@@ -143,7 +143,7 @@ func (s *Service) run(ctx context.Context, interval time.Duration) {
 				slog.Debug("importer: connection check", "path", dev.MountPath, "exists", exists)
 				if !exists {
 					slog.Debug("importer: device unmounted", "path", dev.MountPath)
-					slog.Info("TP7 disconnected")
+					slog.Debug("TP7 disconnected")
 					dev = nil
 					state = StateSearching
 				}

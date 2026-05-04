@@ -1,0 +1,73 @@
+time=2026-05-04T15:15:19.479+02:00 level=DEBUG msg="importer: searching for device" err="USB device 2367:0019 not found in sysfs"
+time=2026-05-04T15:19:16.521+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:19:16.521+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:19:17.562+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:19:18.028+02:00 level=DEBUG msg="tab3 space: toggle" path="" cursor=1 entries=8
+time=2026-05-04T15:28:07.644+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:07.644+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:08.208+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:08.208+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:09.677+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:09.852+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:11.221+02:00 level=DEBUG msg="importer: searching for device" err="USB device 2367:0019 not found in sysfs"
+time=2026-05-04T15:28:16.221+02:00 level=DEBUG msg="importer: FindDeviceMount: found sysfs device" path=/sys/bus/usb/devices/1-5
+time=2026-05-04T15:28:16.221+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=manufacturer value="teenage engineering"
+time=2026-05-04T15:28:16.221+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=product value=TP-7
+time=2026-05-04T15:28:16.221+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=serial value=TPBXB16H
+time=2026-05-04T15:28:16.221+02:00 level=DEBUG msg="importer: FindDeviceMount: glob pattern" pattern="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_TPBXB16H*"
+time=2026-05-04T15:28:16.222+02:00 level=DEBUG msg="importer: searching for device" err="no gvfs mount found for device 2367:0019 (host=teenage_engineering_TP-7_TPBXB16H)"
+time=2026-05-04T15:28:21.221+02:00 level=DEBUG msg="importer: FindDeviceMount: found sysfs device" path=/sys/bus/usb/devices/1-5
+time=2026-05-04T15:28:21.221+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=manufacturer value="teenage engineering"
+time=2026-05-04T15:28:21.221+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=product value=TP-7
+time=2026-05-04T15:28:21.221+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=serial value=TPBXB16H
+time=2026-05-04T15:28:21.221+02:00 level=DEBUG msg="importer: FindDeviceMount: glob pattern" pattern="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_TPBXB16H*"
+time=2026-05-04T15:28:21.223+02:00 level=DEBUG msg="importer: searching for device" err="no gvfs mount found for device 2367:0019 (host=teenage_engineering_TP-7_TPBXB16H)"
+time=2026-05-04T15:28:26.221+02:00 level=DEBUG msg="importer: FindDeviceMount: found sysfs device" path=/sys/bus/usb/devices/1-5
+time=2026-05-04T15:28:26.221+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=manufacturer value="teenage engineering"
+time=2026-05-04T15:28:26.221+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=product value="TP-7 MTP Device"
+time=2026-05-04T15:28:26.221+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=serial value=TPBXB16H
+time=2026-05-04T15:28:26.221+02:00 level=DEBUG msg="importer: FindDeviceMount: glob pattern" pattern="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H*"
+time=2026-05-04T15:28:26.222+02:00 level=DEBUG msg="importer: FindDeviceMount: matched mount" path="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H"
+time=2026-05-04T15:28:26.222+02:00 level=DEBUG msg="importer: device mounted" path="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H"
+time=2026-05-04T15:28:26.222+02:00 level=INFO msg="TP7 connected"
+time=2026-05-04T15:28:26.280+02:00 level=INFO msg="importer: recordings found" total=41 new=0
+time=2026-05-04T15:28:31.225+02:00 level=DEBUG msg="importer: Exists: gvfs dir contents" parent=/run/user/1000/gvfs count=1
+time=2026-05-04T15:28:31.225+02:00 level=DEBUG msg="importer: Exists: entry" name="mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H" want="mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H"
+time=2026-05-04T15:28:31.225+02:00 level=DEBUG msg="importer: connection check" path="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H" exists=true
+time=2026-05-04T15:28:35.690+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:35.690+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:36.225+02:00 level=DEBUG msg="importer: Exists: gvfs dir contents" parent=/run/user/1000/gvfs count=1
+time=2026-05-04T15:28:36.225+02:00 level=DEBUG msg="importer: Exists: entry" name="mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H" want="mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H"
+time=2026-05-04T15:28:36.225+02:00 level=DEBUG msg="importer: connection check" path="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H" exists=true
+time=2026-05-04T15:28:39.741+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:39.741+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:40.763+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:40.764+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:41.165+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:41.165+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:41.225+02:00 level=DEBUG msg="importer: Exists: gvfs dir contents" parent=/run/user/1000/gvfs count=1
+time=2026-05-04T15:28:41.225+02:00 level=DEBUG msg="importer: Exists: entry" name="mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H" want="mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H"
+time=2026-05-04T15:28:41.225+02:00 level=DEBUG msg="importer: connection check" path="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H" exists=true
+time=2026-05-04T15:28:41.629+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:41.629+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:45.409+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:45.409+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:47.151+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:47.151+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:49.427+02:00 level=DEBUG msg="importer: FindDeviceMount: found sysfs device" path=/sys/bus/usb/devices/1-5
+time=2026-05-04T15:28:49.427+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=manufacturer value="teenage engineering"
+time=2026-05-04T15:28:49.428+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=product value="TP-7 MTP Device"
+time=2026-05-04T15:28:49.428+02:00 level=DEBUG msg="importer: FindDeviceMount: sysfs attr" attr=serial value=TPBXB16H
+time=2026-05-04T15:28:49.428+02:00 level=DEBUG msg="importer: FindDeviceMount: glob pattern" pattern="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H*"
+time=2026-05-04T15:28:49.429+02:00 level=DEBUG msg="importer: FindDeviceMount: matched mount" path="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H"
+time=2026-05-04T15:28:49.429+02:00 level=DEBUG msg="importer: device mounted" path="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H"
+time=2026-05-04T15:28:49.429+02:00 level=INFO msg="TP7 connected"
+time=2026-05-04T15:28:49.490+02:00 level=INFO msg="importer: recordings found" total=41 new=0
+time=2026-05-04T15:28:50.209+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:50.209+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:50.993+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:51.152+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T15:28:51.730+02:00 level=DEBUG msg="tab3 space: toggle" path="" cursor=2 entries=8
+time=2026-05-04T15:28:54.431+02:00 level=DEBUG msg="importer: Exists: gvfs dir contents" parent=/run/user/1000/gvfs count=1
+time=2026-05-04T15:28:54.431+02:00 level=DEBUG msg="importer: Exists: entry" name="mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H" want="mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H"
+time=2026-05-04T15:28:54.431+02:00 level=DEBUG msg="importer: connection check" path="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H" exists=true

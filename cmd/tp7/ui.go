@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -40,6 +43,7 @@ const (
 type entriesMsg []importer.Entry
 
 type playbackDoneMsg struct{ err error }
+type playbackTickMsg struct{}
 
 type loadTopicsMsg struct {
 	names []string
@@ -171,9 +175,17 @@ func removeFromTopicCmd(lib *storage.Library, topicName, filename string) tea.Cm
 
 func ignoreInTopicCmd(lib *storage.Library, topicName, filename string) tea.Cmd {
 	return func() tea.Msg {
+		// Carry over the device path and size from the existing mark (set when
+		// the file was copied from the device) so Tab 3 can still play/copy it.
+		var sourcePath string
+		var size int64
+		if m, err := lib.ReadMark(filename); err == nil && m != nil {
+			sourcePath = m.SourcePath
+			size = m.Size
+		}
 		err := lib.RemoveFromTopic(topicName, filename)
 		if err == nil {
-			err = lib.MarkFile(filename, storage.ActionIgnore, "", "", 0)
+			err = lib.MarkFile(filename, storage.ActionIgnore, "", sourcePath, size)
 		}
 		return libFileDoneMsg{topicName: topicName, fileName: filename, isIgnore: true, err: err}
 	}
@@ -232,12 +244,114 @@ func copyFromIgnoredCmd(lib *storage.Library, filename, sourcePath, topicName st
 
 func playCmd(p *playback.Player, path string) tea.Cmd {
 	return func() tea.Msg {
+		slog.Debug("playCmd: starting", "path", path)
 		done, err := p.Play(path)
 		if err != nil {
+			slog.Debug("playCmd: Play() error", "path", path, "err", err)
 			return playbackDoneMsg{err: err}
 		}
-		return playbackDoneMsg{err: <-done}
+		err = <-done
+		slog.Debug("playCmd: done", "path", path, "err", err)
+		return playbackDoneMsg{err: err}
 	}
+}
+
+func tickCmd() tea.Cmd {
+	return tea.Tick(500*time.Millisecond, func(time.Time) tea.Msg {
+		return playbackTickMsg{}
+	})
+}
+
+func fmtDuration(d time.Duration) string {
+	d = d.Round(time.Second)
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	s := int(d.Seconds()) % 60
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%d:%02d", m, s)
+}
+
+// ── playerState ───────────────────────────────────────────────────────────────
+
+// playerState encapsulates audio playback state for a single tab model.
+// Use newPlayerState() to construct; the zero value is not ready.
+type playerState struct {
+	player      *playback.Player
+	playingPath string
+	playPos     time.Duration
+	playDur     time.Duration
+}
+
+func newPlayerState() playerState {
+	return playerState{player: &playback.Player{}}
+}
+
+// toggle starts playback of path, or stops if path is already playing.
+// Returns the tea.Cmd to run (nil when toggling off).
+func (ps *playerState) toggle(path string) tea.Cmd {
+	if path == "" {
+		slog.Debug("playerState.toggle: empty path, ignoring")
+		return nil
+	}
+	if ps.playingPath == path {
+		slog.Debug("playerState.toggle: stopping", "path", path)
+		ps.stop()
+		return nil
+	}
+	slog.Debug("playerState.toggle: starting", "path", path, "prev", ps.playingPath)
+	ps.player.Stop()
+	ps.playingPath = path
+	ps.playPos = 0
+	ps.playDur = 0
+	return tea.Batch(playCmd(ps.player, path), tickCmd())
+}
+
+// stop stops any current playback and clears state.
+func (ps *playerState) stop() {
+	slog.Debug("playerState.stop", "was", ps.playingPath)
+	ps.player.Stop()
+	ps.playingPath = ""
+	ps.playPos = 0
+	ps.playDur = 0
+}
+
+// seek moves playback by offset (positive = forward, negative = backward).
+func (ps *playerState) seek(offset time.Duration) {
+	ps.player.Seek(offset)
+}
+
+// onTick reads current position/duration. Returns true if still playing.
+func (ps *playerState) onTick() bool {
+	if ps.playingPath == "" {
+		return false
+	}
+	ps.playPos = ps.player.Position()
+	ps.playDur = ps.player.Duration()
+	slog.Debug("playerState.onTick", "pos", ps.playPos, "dur", ps.playDur, "path", ps.playingPath)
+	return true
+}
+
+// onDone clears playback state when playback ends.
+func (ps *playerState) onDone() {
+	slog.Debug("playerState.onDone", "path", ps.playingPath)
+	ps.playingPath = ""
+	ps.playPos = 0
+	ps.playDur = 0
+}
+
+// isPlaying reports whether path is the currently playing file.
+func (ps playerState) isPlaying(path string) bool {
+	return path != "" && ps.playingPath == path
+}
+
+// timeLabel returns "pos / dur" or "" when idle.
+func (ps playerState) timeLabel() string {
+	if ps.playingPath == "" {
+		return ""
+	}
+	return fmtDuration(ps.playPos) + " / " + fmtDuration(ps.playDur)
 }
 
 func loadTopicsCmd(lib *storage.Library) tea.Cmd {
@@ -371,20 +485,19 @@ type flatRow struct {
 }
 
 type libraryModel struct {
-	lib         *storage.Library
-	topics      []topicNode
-	cursor      int
-	height      int
-	width       int
-	status      string
-	dialog      newTopicDialog
-	confirm     libConfirmDialog
-	player      *playback.Player
-	playingFile string // base name of currently playing file, or ""
+	lib     *storage.Library
+	topics  []topicNode
+	cursor  int
+	height  int
+	width   int
+	status  string
+	dialog  newTopicDialog
+	confirm libConfirmDialog
+	ps      playerState
 }
 
 func newLibraryModel(lib *storage.Library) libraryModel {
-	return libraryModel{lib: lib, status: "Loading library…", player: &playback.Player{}}
+	return libraryModel{lib: lib, status: "Loading library…", ps: newPlayerState()}
 }
 
 func (m libraryModel) Init() tea.Cmd {
@@ -468,14 +581,12 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 	case "up", "k":
 		if m.cursor > 0 {
 			m.cursor--
-			m.player.Stop()
-			m.playingFile = ""
+			m.ps.stop()
 		}
 	case "down", "j":
 		if m.cursor < len(rows)-1 {
 			m.cursor++
-			m.player.Stop()
-			m.playingFile = ""
+			m.ps.stop()
 		}
 	case "enter":
 		if m.cursor < len(rows) {
@@ -488,22 +599,20 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 				}
 			}
 		}
+	case "left":
+		m.ps.seek(-10 * time.Second)
+	case "right":
+		m.ps.seek(10 * time.Second)
 	case " ":
 		if m.cursor < len(rows) {
 			row := rows[m.cursor]
 			if !row.isTopic {
 				filename := m.topics[row.topicIdx].files[row.fileIdx]
 				topicName := m.topics[row.topicIdx].name
-				if m.playingFile == filename {
-					// toggle off
-					m.player.Stop()
-					m.playingFile = ""
-				} else {
-					// start playing; deselect any multi-selection (not applicable in lib, but kept consistent)
-					m.player.Stop()
-					path := m.lib.FilePath(topicName, filename)
-					m.playingFile = filename
-					return m, playCmd(m.player, path)
+				path := m.lib.FilePath(topicName, filename)
+				slog.Debug("tab1 space: toggle", "path", path)
+				if cmd := m.ps.toggle(path); cmd != nil {
+					return m, cmd
 				}
 			}
 		}
@@ -625,8 +734,13 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		m.dialog = newTopicDialog{} // close
 		return m, loadTopicsCmd(m.lib)
 
+	case playbackTickMsg:
+		if m.ps.onTick() {
+			return m, tickCmd()
+		}
+
 	case playbackDoneMsg:
-		m.playingFile = ""
+		m.ps.onDone()
 		if msg.err != nil && msg.err != playback.ErrStopped {
 			m.status = fmt.Sprintf("Playback error: %v", msg.err)
 		}
@@ -672,11 +786,15 @@ func (m libraryModel) view() string {
 			line = fmt.Sprintf("%s %s", arrow, t.name)
 		} else {
 			f := m.topics[row.topicIdx].files[row.fileIdx]
+			topicName := m.topics[row.topicIdx].name
+			path := m.lib.FilePath(topicName, f)
 			prefix := "  └ "
-			if f == m.playingFile {
+			if m.ps.isPlaying(path) {
 				prefix = "  ▶ "
+				line = prefix + f + "  " + m.ps.timeLabel()
+			} else {
+				line = prefix + f
 			}
-			line = prefix + f
 		}
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
@@ -756,10 +874,11 @@ type importModel struct {
 	entriesCh <-chan []importer.Entry
 	dialog    importDialog
 	copying   bool
+	ps        playerState
 }
 
 func newImportModel(lib *storage.Library, ch <-chan []importer.Entry) importModel {
-	return importModel{lib: lib, entriesCh: ch, status: "Waiting for TP-7…"}
+	return importModel{lib: lib, entriesCh: ch, status: "Waiting for TP-7…", ps: newPlayerState()}
 }
 
 func (m importModel) Init() tea.Cmd {
@@ -838,12 +957,14 @@ func (m importModel) handleNormalKey(msg tea.KeyMsg) (importModel, tea.Cmd) {
 		m.sel = nil
 		if m.cursor > 0 {
 			m.cursor--
+			m.ps.stop()
 		}
 		m.anchor = m.cursor
 	case "down", "j":
 		m.sel = nil
 		if m.cursor < len(m.entries)-1 {
 			m.cursor++
+			m.ps.stop()
 		}
 		m.anchor = m.cursor
 	case "shift+up":
@@ -863,6 +984,18 @@ func (m importModel) handleNormalKey(msg tea.KeyMsg) (importModel, tea.Cmd) {
 		}
 	case "d":
 		m.sel = nil
+	case " ":
+		if !m.copying && m.cursor < len(m.entries) {
+			path := m.entries[m.cursor].Path
+			slog.Debug("tab2 space: toggle", "path", path, "cursor", m.cursor, "entries", len(m.entries))
+			if cmd := m.ps.toggle(path); cmd != nil {
+				return m, cmd
+			}
+		}
+	case "left":
+		m.ps.seek(-10 * time.Second)
+	case "right":
+		m.ps.seek(10 * time.Second)
 	case "i":
 		if m.lib != nil && len(m.entries) > 0 {
 			m.dialog = importDialog{
@@ -883,6 +1016,17 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
+
+	case playbackTickMsg:
+		if m.ps.onTick() {
+			return m, tickCmd()
+		}
+
+	case playbackDoneMsg:
+		m.ps.onDone()
+		if msg.err != nil && msg.err != playback.ErrStopped {
+			m.status = fmt.Sprintf("Playback error: %v", msg.err)
+		}
 
 	case entriesMsg:
 		m.entries = []importer.Entry(msg)
@@ -1030,7 +1174,13 @@ func (m importModel) view() string {
 		if m.sel[i] {
 			prefix = "► "
 		}
-		line := fmt.Sprintf("%s%-38s  %8s", prefix, e.Name, formatSize(e.Size))
+		var line string
+		if m.ps.isPlaying(e.Path) {
+			prefix = "▶ "
+			line = fmt.Sprintf("%s%-38s  %8s  %s", prefix, e.Name, formatSize(e.Size), m.ps.timeLabel())
+		} else {
+			line = fmt.Sprintf("%s%-38s  %8s", prefix, e.Name, formatSize(e.Size))
+		}
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
 		} else if m.sel[i] {
@@ -1120,10 +1270,11 @@ type ignoredModel struct {
 	status  string
 	dialog  ignoredDialog
 	copying bool
+	ps      playerState
 }
 
 func newIgnoredModel(lib *storage.Library) ignoredModel {
-	return ignoredModel{lib: lib, status: "Loading ignored files…"}
+	return ignoredModel{lib: lib, status: "Loading ignored files…", ps: newPlayerState()}
 }
 
 func (m ignoredModel) Init() tea.Cmd {
@@ -1205,12 +1356,14 @@ func (m ignoredModel) handleNormalKey(msg tea.KeyMsg) (ignoredModel, tea.Cmd) {
 		m.sel = nil
 		if m.cursor > 0 {
 			m.cursor--
+			m.ps.stop()
 		}
 		m.anchor = m.cursor
 	case "down", "j":
 		m.sel = nil
 		if m.cursor < len(m.entries)-1 {
 			m.cursor++
+			m.ps.stop()
 		}
 		m.anchor = m.cursor
 	case "shift+up":
@@ -1230,6 +1383,26 @@ func (m ignoredModel) handleNormalKey(msg tea.KeyMsg) (ignoredModel, tea.Cmd) {
 		}
 	case "d":
 		m.sel = nil
+	case " ":
+		if !m.copying && m.cursor < len(m.entries) {
+			path := m.entries[m.cursor].SourcePath
+			slog.Debug("tab3 space: toggle", "path", path, "cursor", m.cursor, "entries", len(m.entries))
+			if path == "" {
+				m.status = "No file available – was removed from library when ignored"
+				return m, nil
+			}
+			if _, err := os.Stat(path); err != nil {
+				m.status = "Device not mounted – cannot play"
+				return m, nil
+			}
+			if cmd := m.ps.toggle(path); cmd != nil {
+				return m, cmd
+			}
+		}
+	case "left":
+		m.ps.seek(-10 * time.Second)
+	case "right":
+		m.ps.seek(10 * time.Second)
 	case "r":
 		return m, loadIgnoredCmd(m.lib)
 	case "delete":
@@ -1253,10 +1426,23 @@ func (m ignoredModel) handleNormalKey(msg tea.KeyMsg) (ignoredModel, tea.Cmd) {
 	case "c":
 		if m.lib != nil && len(m.entries) > 0 {
 			entries := m.selectedIgnoredEntries()
-			if len(entries) > 1 {
-				return m, loadIgnoredBatchTopicsCmd(m.lib, entries)
+			// Filter out entries whose source file is not accessible.
+			var accessible []storage.IgnoredEntry
+			for _, e := range entries {
+				if e.SourcePath != "" {
+					if _, err := os.Stat(e.SourcePath); err == nil {
+						accessible = append(accessible, e)
+					}
+				}
 			}
-			e := m.entries[m.cursor]
+			if len(accessible) == 0 {
+				m.status = "Device not mounted – cannot copy"
+				return m, nil
+			}
+			if len(accessible) > 1 {
+				return m, loadIgnoredBatchTopicsCmd(m.lib, accessible)
+			}
+			e := accessible[0]
 			return m, loadIgnoredTopicsCmd(m.lib, e.Name, e.SourcePath)
 		}
 	}
@@ -1268,6 +1454,17 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
+
+	case playbackTickMsg:
+		if m.ps.onTick() {
+			return m, tickCmd()
+		}
+
+	case playbackDoneMsg:
+		m.ps.onDone()
+		if msg.err != nil && msg.err != playback.ErrStopped {
+			m.status = fmt.Sprintf("Playback error: %v", msg.err)
+		}
 
 	case loadIgnoredMsg:
 		if msg.err != nil {
@@ -1403,11 +1600,22 @@ func (m ignoredModel) view() string {
 	}
 	var out string
 	for i := start; i < start+listHeight && i < len(m.entries); i++ {
+		e := m.entries[i]
 		prefix := "  "
 		if m.sel[i] {
 			prefix = "► "
 		}
-		line := prefix + m.entries[i].Name
+		var line string
+		if e.SourcePath == "" {
+			line = prefix + styleDim.Render(e.Name+"  (no file)")
+		} else if m.ps.isPlaying(e.SourcePath) {
+			prefix = "▶ "
+			line = prefix + e.Name + "  " + m.ps.timeLabel()
+		} else if _, err := os.Stat(e.SourcePath); err != nil {
+			line = prefix + styleDim.Render(e.Name+"  (device not mounted)")
+		} else {
+			line = prefix + e.Name
+		}
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
 		} else if m.sel[i] {
@@ -1518,15 +1726,21 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c", "q", "Q":
 			return m, tea.Quit
 		case "1":
+			m.imports.ps.stop()
+			m.ignored.ps.stop()
 			m.active = tabLibrary
 			return m, nil
 		case "2":
+			m.library.ps.stop()
+			m.ignored.ps.stop()
 			m.active = tabImport
 			return m, nil
 		case "3":
+			m.library.ps.stop()
+			m.imports.ps.stop()
 			m.active = tabIgnored
 			return m, loadIgnoredCmd(m.ignored.lib)
 		}
@@ -1545,6 +1759,23 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ignored = ign
 			return m, cmd
 		}
+	case playbackDoneMsg, playbackTickMsg:
+		slog.Debug("rootModel: routing playback msg", "active", m.active, "type", fmt.Sprintf("%T", msg))
+		switch m.active {
+		case tabLibrary:
+			lib, cmd := m.library.update(msg)
+			m.library = lib
+			return m, cmd
+		case tabImport:
+			imp, cmd := m.imports.update(msg)
+			m.imports = imp
+			return m, cmd
+		case tabIgnored:
+			ign, cmd := m.ignored.update(msg)
+			m.ignored = ign
+			return m, cmd
+		}
+		return m, nil
 	}
 	// data messages (async loads, entries) reach all sub-models
 	lib, c1 := m.library.update(msg)
@@ -1603,19 +1834,19 @@ func (m rootModel) View() string {
 		libRows := m.library.buildRows()
 		onFile := len(libRows) > 0 && m.library.cursor < len(libRows) && !libRows[m.library.cursor].isTopic
 		if onFile {
-			footerParts = "↑/↓ scroll  •  Space play/stop  •  i ignore  •  Del delete  •  n new topic  •  r reload  •  q quit"
+			footerParts = "↑/↓ scroll  •  Space play/stop  •  ←/→ seek 10s  •  i ignore  •  Del delete  •  n new topic  •  r reload  •  q quit"
 		} else {
 			footerParts = "↑/↓ scroll  •  Enter expand  •  n new topic  •  r reload  •  q quit"
 		}
 	case tabImport:
 		if len(m.imports.entries) > 0 && m.imports.dialog.mode == importDialogNone {
-			footerParts = "↑/↓ scroll  •  Shift+↑/↓ multi-select  •  a all  •  d none  •  i ignore  •  c copy  •  q quit"
+			footerParts = "↑/↓ scroll  •  Space play/stop  •  ←/→ seek 10s  •  Shift+↑/↓ multi-select  •  a all  •  d none  •  i ignore  •  c copy  •  q quit"
 		} else {
 			footerParts = "↑/↓ scroll  •  q quit"
 		}
 	case tabIgnored:
 		if len(m.ignored.entries) > 0 && m.ignored.dialog.mode == ignoredDialogNone {
-			footerParts = "↑/↓ scroll  •  Shift+↑/↓ multi-select  •  a all  •  d none  •  c copy to topic  •  Del unmark  •  r reload  •  q quit"
+			footerParts = "↑/↓ scroll  •  Space play/stop  •  ←/→ seek 10s  •  Shift+↑/↓ multi-select  •  a all  •  d none  •  c copy to topic  •  Del unmark  •  r reload  •  q quit"
 		} else {
 			footerParts = "↑/↓ scroll  •  r reload  •  q quit"
 		}

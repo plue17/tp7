@@ -133,7 +133,7 @@ func (l *Library) CopyToTopic(topicName, srcPath string) error {
 		return fmt.Errorf("closing destination: %w", err)
 	}
 
-	return l.MarkFile(filename, ActionCopied, topicName, "", 0)
+	return l.MarkFile(filename, ActionCopied, topicName, srcPath, 0)
 }
 
 // MarkFile records a decision for a voice memo file.

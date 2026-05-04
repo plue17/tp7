@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -23,6 +25,7 @@ func main() {
 
 	configPath := flag.String("c", defaultConfig, "path to configuration file (YAML)")
 	debug := flag.Bool("d", false, "enable debug logging")
+	logFile := flag.String("l", "", "write log output to this file (use with -d for debug info)")
 	flag.Parse()
 
 	// explicit=true when -c was provided by the user.
@@ -32,6 +35,24 @@ func main() {
 			explicit = true
 		}
 	})
+
+	// Set up file logging if -l was provided; otherwise discard all log output
+	// so nothing leaks into the TUI.
+	if *logFile != "" {
+		f, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error opening log file: %v\n", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		level := slog.LevelInfo
+		if *debug {
+			level = slog.LevelDebug
+		}
+		slog.SetDefault(slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: level})))
+	} else {
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	}
 
 	cfg, err := config.Load(*configPath, explicit)
 	if err != nil {
