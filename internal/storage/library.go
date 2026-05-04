@@ -98,6 +98,11 @@ func (l *Library) TopicFiles(topicName string) ([]string, error) {
 	return files, nil
 }
 
+// FilePath returns the absolute path to a file inside a topic.
+func (l *Library) FilePath(topicName, filename string) string {
+	return filepath.Join(l.Path, topicName, filename)
+}
+
 // markFilePath returns the path to the YAML mark file for the given voice memo filename.
 func (l *Library) markFilePath(filename string) string {
 	return filepath.Join(l.Path, markedDir, filename+".yaml")

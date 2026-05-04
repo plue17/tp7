@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"tp7/internal/importer"
+	"tp7/internal/playback"
 	"tp7/internal/storage"
 )
 
@@ -37,6 +38,8 @@ const (
 // ── messages ──────────────────────────────────────────────────────────────────
 
 type entriesMsg []importer.Entry
+
+type playbackDoneMsg struct{ err error }
 
 type loadTopicsMsg struct {
 	names []string
@@ -227,6 +230,16 @@ func copyFromIgnoredCmd(lib *storage.Library, filename, sourcePath, topicName st
 
 // ── commands ──────────────────────────────────────────────────────────────────
 
+func playCmd(p *playback.Player, path string) tea.Cmd {
+	return func() tea.Msg {
+		done, err := p.Play(path)
+		if err != nil {
+			return playbackDoneMsg{err: err}
+		}
+		return playbackDoneMsg{err: <-done}
+	}
+}
+
 func loadTopicsCmd(lib *storage.Library) tea.Cmd {
 	return func() tea.Msg {
 		topics, err := lib.Topics()
@@ -358,18 +371,20 @@ type flatRow struct {
 }
 
 type libraryModel struct {
-	lib     *storage.Library
-	topics  []topicNode
-	cursor  int
-	height  int
-	width   int
-	status  string
-	dialog  newTopicDialog
-	confirm libConfirmDialog
+	lib         *storage.Library
+	topics      []topicNode
+	cursor      int
+	height      int
+	width       int
+	status      string
+	dialog      newTopicDialog
+	confirm     libConfirmDialog
+	player      *playback.Player
+	playingFile string // base name of currently playing file, or ""
 }
 
 func newLibraryModel(lib *storage.Library) libraryModel {
-	return libraryModel{lib: lib, status: "Loading library…"}
+	return libraryModel{lib: lib, status: "Loading library…", player: &playback.Player{}}
 }
 
 func (m libraryModel) Init() tea.Cmd {
@@ -453,12 +468,16 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 	case "up", "k":
 		if m.cursor > 0 {
 			m.cursor--
+			m.player.Stop()
+			m.playingFile = ""
 		}
 	case "down", "j":
 		if m.cursor < len(rows)-1 {
 			m.cursor++
+			m.player.Stop()
+			m.playingFile = ""
 		}
-	case "enter", " ":
+	case "enter":
 		if m.cursor < len(rows) {
 			row := rows[m.cursor]
 			if row.isTopic {
@@ -466,6 +485,25 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 				t.expanded = !t.expanded
 				if t.expanded && !t.loaded {
 					return m, loadFilesCmd(m.lib, t.name)
+				}
+			}
+		}
+	case " ":
+		if m.cursor < len(rows) {
+			row := rows[m.cursor]
+			if !row.isTopic {
+				filename := m.topics[row.topicIdx].files[row.fileIdx]
+				topicName := m.topics[row.topicIdx].name
+				if m.playingFile == filename {
+					// toggle off
+					m.player.Stop()
+					m.playingFile = ""
+				} else {
+					// start playing; deselect any multi-selection (not applicable in lib, but kept consistent)
+					m.player.Stop()
+					path := m.lib.FilePath(topicName, filename)
+					m.playingFile = filename
+					return m, playCmd(m.player, path)
 				}
 			}
 		}
@@ -587,6 +625,12 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		m.dialog = newTopicDialog{} // close
 		return m, loadTopicsCmd(m.lib)
 
+	case playbackDoneMsg:
+		m.playingFile = ""
+		if msg.err != nil && msg.err != playback.ErrStopped {
+			m.status = fmt.Sprintf("Playback error: %v", msg.err)
+		}
+
 	case tea.KeyMsg:
 		if m.dialog.active {
 			return m.handleDialogKey(msg)
@@ -628,7 +672,11 @@ func (m libraryModel) view() string {
 			line = fmt.Sprintf("%s %s", arrow, t.name)
 		} else {
 			f := m.topics[row.topicIdx].files[row.fileIdx]
-			line = fmt.Sprintf("  └ %s", f)
+			prefix := "  └ "
+			if f == m.playingFile {
+				prefix = "  ▶ "
+			}
+			line = prefix + f
 		}
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
@@ -1553,8 +1601,9 @@ func (m rootModel) View() string {
 	switch m.active {
 	case tabLibrary:
 		libRows := m.library.buildRows()
-		if len(libRows) > 0 && m.library.cursor < len(libRows) && !libRows[m.library.cursor].isTopic {
-			footerParts = "↑/↓ scroll  •  i ignore  •  Del delete  •  n new topic  •  r reload  •  q quit"
+		onFile := len(libRows) > 0 && m.library.cursor < len(libRows) && !libRows[m.library.cursor].isTopic
+		if onFile {
+			footerParts = "↑/↓ scroll  •  Space play/stop  •  i ignore  •  Del delete  •  n new topic  •  r reload  •  q quit"
 		} else {
 			footerParts = "↑/↓ scroll  •  Enter expand  •  n new topic  •  r reload  •  q quit"
 		}
