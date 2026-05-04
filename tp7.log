@@ -71,3 +71,31 @@ time=2026-05-04T15:28:51.730+02:00 level=DEBUG msg="tab3 space: toggle" path="" 
 time=2026-05-04T15:28:54.431+02:00 level=DEBUG msg="importer: Exists: gvfs dir contents" parent=/run/user/1000/gvfs count=1
 time=2026-05-04T15:28:54.431+02:00 level=DEBUG msg="importer: Exists: entry" name="mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H" want="mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H"
 time=2026-05-04T15:28:54.431+02:00 level=DEBUG msg="importer: connection check" path="/run/user/1000/gvfs/mtp:host=teenage_engineering_TP-7_MTP_Device_TPBXB16H" exists=true
+time=2026-05-04T21:21:55.304+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:55.304+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:55.976+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T21:21:55.976+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:55.976+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:56.185+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T21:21:56.185+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:56.186+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:56.343+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T21:21:56.343+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:56.343+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:56.505+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T21:21:56.505+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:56.505+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:56.842+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-04T21:21:56.842+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:56.842+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:57.081+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:57.081+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:57.081+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:57.081+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:57.081+02:00 level=DEBUG msg="tab1 align" file=2026-05-01_123257_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:58.138+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:58.138+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:58.138+02:00 level=DEBUG msg="tab1 align" file=2026-05-01_123257_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:58.138+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:58.138+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-04T21:21:58.138+02:00 level=DEBUG msg="tab1 align" file=2026-05-01_123257_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104

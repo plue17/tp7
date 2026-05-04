@@ -208,10 +208,10 @@ func formatLabelAligned(filename, displayName string, availWidth int) string {
 	if !isUserName {
 		name = "no description"
 	}
-	gap := availWidth - len(name) - len(ts)
+	gap := availWidth - lipgloss.Width(name) - len(ts)
 	if gap < 1 {
 		// Truncate name to make room for at least one space + timestamp.
-		name = name[:max(0, availWidth-len(ts)-1)]
+		name = string([]rune(name)[:max(0, availWidth-len(ts)-1)])
 		gap = 1
 	}
 	return name + strings.Repeat(" ", gap) + ts
@@ -1187,7 +1187,8 @@ func (m libraryModel) view() string {
 			if m.ps.isPlaying(path) {
 				prefix = "  ▶ "
 			}
-			label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], m.width-5-len(prefix))
+			availWidth := m.width - 5 - lipgloss.Width(prefix)
+			label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], availWidth)
 			line = prefix + label
 		}
 		if i == m.cursor {
@@ -1698,7 +1699,7 @@ func (m importModel) view() string {
 		}
 		sizeStr := formatSize(e.Size)
 		const sizeColWidth = 9 // enough for "1023.9 MB"
-		label := formatLabelAligned(e.Name, m.displayNames[e.Name], m.width-5-len(prefix)-2-sizeColWidth)
+		label := formatLabelAligned(e.Name, m.displayNames[e.Name], m.width-5-lipgloss.Width(prefix)-2-sizeColWidth)
 		var line string
 		if m.ps.isPlaying(e.Path) {
 			prefix = "▶ "
@@ -2214,7 +2215,7 @@ func (m ignoredModel) view() string {
 		if m.sel[i] {
 			prefix = "► "
 		}
-		label := formatLabelAligned(e.Name, e.DisplayName, m.width-5-len(prefix))
+		label := formatLabelAligned(e.Name, e.DisplayName, m.width-5-lipgloss.Width(prefix))
 		var line string
 		if e.SourcePath == "" {
 			line = prefix + styleDim.Render(label+"  (no file)")
