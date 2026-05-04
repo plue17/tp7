@@ -1697,13 +1697,14 @@ func (m importModel) view() string {
 			prefix = "► "
 		}
 		sizeStr := formatSize(e.Size)
-		label := formatLabelAligned(e.Name, m.displayNames[e.Name], m.width-5-len(prefix)-2-len(sizeStr))
+		const sizeColWidth = 9 // enough for "1023.9 MB"
+		label := formatLabelAligned(e.Name, m.displayNames[e.Name], m.width-5-len(prefix)-2-sizeColWidth)
 		var line string
 		if m.ps.isPlaying(e.Path) {
 			prefix = "▶ "
-			line = prefix + label + "  " + sizeStr
+			line = prefix + label + "  " + fmt.Sprintf("%*s", sizeColWidth, sizeStr)
 		} else {
-			line = prefix + label + "  " + sizeStr
+			line = prefix + label + "  " + fmt.Sprintf("%*s", sizeColWidth, sizeStr)
 		}
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
