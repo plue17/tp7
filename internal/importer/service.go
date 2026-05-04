@@ -39,6 +39,11 @@ type Service struct {
 	// each time the device connects. Sends are non-blocking; use a buffered channel.
 	RecordingsCh chan<- []Entry
 
+	// DeviceStateCh, if non-nil, receives a State value whenever the device
+	// connects (StateConnected) or disconnects (StateSearching).
+	// Sends are non-blocking; use a buffered channel.
+	DeviceStateCh chan<- State
+
 	cancel context.CancelFunc
 	done   chan struct{}
 }
@@ -122,6 +127,12 @@ func (s *Service) run(ctx context.Context, interval time.Duration) {
 				state = StateConnected
 				slog.Debug("importer: device mounted", "path", dev.MountPath)
 				slog.Debug("TP7 connected")
+				if s.DeviceStateCh != nil {
+					select {
+					case s.DeviceStateCh <- StateConnected:
+					default:
+					}
+				}
 				if entries, err := dev.ListRecordings(); err != nil {
 					slog.Warn("importer: could not list recordings", "err", err)
 				} else {
@@ -146,6 +157,12 @@ func (s *Service) run(ctx context.Context, interval time.Duration) {
 					slog.Debug("TP7 disconnected")
 					dev = nil
 					state = StateSearching
+					if s.DeviceStateCh != nil {
+						select {
+						case s.DeviceStateCh <- StateSearching:
+						default:
+						}
+					}
 				}
 			}
 		}

@@ -71,16 +71,18 @@ func main() {
 	}
 
 	entriesCh := make(chan []importer.Entry, 1)
+	deviceStateCh := make(chan importer.State, 1)
 
 	svc := &importer.Service{
-		VendorID:     cfg.MTPDevice.VendorID,
-		ProductID:    cfg.MTPDevice.ProductID,
-		Debug:        *debug,
-		Library:      lib,
-		RecordingsCh: entriesCh,
+		VendorID:      cfg.MTPDevice.VendorID,
+		ProductID:     cfg.MTPDevice.ProductID,
+		Debug:         *debug,
+		Library:       lib,
+		RecordingsCh:  entriesCh,
+		DeviceStateCh: deviceStateCh,
 	}
 
-	p := tea.NewProgram(newRootModel(lib, entriesCh), tea.WithAltScreen())
+	p := tea.NewProgram(newRootModel(lib, entriesCh, deviceStateCh), tea.WithAltScreen())
 
 	// Forward OS signals to the bubbletea program so Ctrl+C / SIGTERM quit cleanly.
 	sig := make(chan os.Signal, 1)

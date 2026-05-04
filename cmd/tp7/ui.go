@@ -45,6 +45,10 @@ const (
 
 type entriesMsg []importer.Entry
 
+type deviceStateMsg struct {
+	state importer.State
+}
+
 type playbackDoneMsg struct {
 	path string
 	err  error
@@ -1301,12 +1305,7 @@ func (m libraryModel) view() string {
 			line = styleTopic.Render(fmt.Sprintf("%s %s", arrow, t.name))
 		} else {
 			f := m.topics[row.topicIdx].files[row.fileIdx]
-			topicName := m.topics[row.topicIdx].name
-			path := m.lib.FilePath(topicName, f)
 			prefix := "  "
-			if m.ps.isPlaying(path) {
-				prefix = "▶ "
-			}
 			availWidth := m.width - 5 - lipgloss.Width(prefix)
 			durStr := formatDuration(m.topics[row.topicIdx].durations[f])
 			if i == m.cursor {
@@ -1444,33 +1443,39 @@ type importDialog struct {
 // ── import model (2) ─────────────────────────────────────────────────────────
 
 type importModel struct {
-	lib          *storage.Library
-	entries      []importer.Entry
-	cursor       int
-	sel          map[int]bool
-	anchor       int
-	height       int
-	width        int
-	status       string
-	entriesCh    <-chan []importer.Entry
-	dialog       importDialog
-	copying      bool
-	ps           playerState
-	rename       renameDialog
-	displayNames map[string]string
+	lib           *storage.Library
+	entries       []importer.Entry
+	cursor        int
+	sel           map[int]bool
+	anchor        int
+	height        int
+	width         int
+	status        string
+	entriesCh     <-chan []importer.Entry
+	deviceStateCh <-chan importer.State
+	dialog        importDialog
+	copying       bool
+	ps            playerState
+	rename        renameDialog
+	displayNames  map[string]string
 }
 
-func newImportModel(lib *storage.Library, ch <-chan []importer.Entry) importModel {
-	return importModel{lib: lib, entriesCh: ch, status: "Waiting for TP-7…", ps: newPlayerState()}
+func newImportModel(lib *storage.Library, ch <-chan []importer.Entry, stateCh <-chan importer.State) importModel {
+	return importModel{lib: lib, entriesCh: ch, deviceStateCh: stateCh, status: "Waiting for TP-7…", ps: newPlayerState()}
 }
 
 func (m importModel) Init() tea.Cmd {
-	return m.awaitEntries()
+	return tea.Batch(m.awaitEntries(), m.awaitDeviceState())
 }
 
 func (m importModel) awaitEntries() tea.Cmd {
 	ch := m.entriesCh
 	return func() tea.Msg { return entriesMsg(<-ch) }
+}
+
+func (m importModel) awaitDeviceState() tea.Cmd {
+	ch := m.deviceStateCh
+	return func() tea.Msg { return deviceStateMsg{state: <-ch} }
 }
 
 // selectedEntries returns the selected entries (or the cursor entry if no selection).
@@ -1666,6 +1671,13 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 			names[i] = e.Name
 		}
 		return m, tea.Batch(m.awaitEntries(), loadImportDisplayNamesCmd(m.lib, names))
+
+	case deviceStateMsg:
+		if msg.state == importer.StateSearching {
+			m.status = "Waiting for TP-7…"
+			m.ps.stop()
+		}
+		return m, m.awaitDeviceState()
 
 	case importTopicsLoadedMsg:
 		if msg.err != nil {
@@ -2463,11 +2475,11 @@ type rootModel struct {
 	showHelp bool
 }
 
-func newRootModel(lib *storage.Library, ch <-chan []importer.Entry) rootModel {
+func newRootModel(lib *storage.Library, ch <-chan []importer.Entry, stateCh <-chan importer.State) rootModel {
 	return rootModel{
 		active:  tabLibrary,
 		library: newLibraryModel(lib),
-		imports: newImportModel(lib, ch),
+		imports: newImportModel(lib, ch, stateCh),
 		ignored: newIgnoredModel(lib),
 	}
 }
@@ -2713,7 +2725,7 @@ func (m rootModel) helpLines() []string {
 			"  i             ignore file",
 			"  Del           delete file  /  delete topic",
 			"  m             move file to topic",
-			"  r             rename file",
+			"  r             change description",
 			"  n             new topic",
 			"  R             rename topic",
 		}
@@ -2726,7 +2738,7 @@ func (m rootModel) helpLines() []string {
 			"  Space         play / pause file",
 			"  i             ignore selected",
 			"  c             copy to topic",
-			"  r             rename file",
+			"  r             change description",
 		}
 	case tabIgnored:
 		specific = []string{
@@ -2737,7 +2749,7 @@ func (m rootModel) helpLines() []string {
 			"  Space         play / pause file",
 			"  c             copy to topic",
 			"  Del           unmark (remove from ignored)",
-			"  r             rename file",
+			"  r             change description",
 		}
 	}
 	lines := append(global, playback...)
