@@ -1828,20 +1828,20 @@ func (m importModel) view() string {
 		}
 		sizeStr := formatSize(e.Size)
 		const sizeColWidth = 9 // enough for "1023.9 MB"
-		label := formatLabelAligned(e.Name, m.displayNames[e.Name], m.width-5-lipgloss.Width(prefix)-2-sizeColWidth, "")
-		var line string
+		availW := m.width - 5 - lipgloss.Width(prefix) - 2 - sizeColWidth
 		if m.ps.isPlaying(e.Path) {
 			prefix = "▶ "
-			line = prefix + label + "  " + fmt.Sprintf("%*s", sizeColWidth, sizeStr)
-		} else {
-			line = prefix + label + "  " + fmt.Sprintf("%*s", sizeColWidth, sizeStr)
 		}
+		sizeField := fmt.Sprintf("%*s", sizeColWidth, sizeStr)
 		if i == m.cursor {
-			out += styleSelected.Render(line) + "\n"
+			label := formatLabelAligned(e.Name, m.displayNames[e.Name], availW, "")
+			out += styleSelected.Render(prefix+label+"  "+sizeField) + "\n"
 		} else if m.sel[i] {
-			out += styleMultiSel.Render(line) + "\n"
+			label := formatLabelAligned(e.Name, m.displayNames[e.Name], availW, "")
+			out += styleMultiSel.Render(prefix+label+"  "+sizeField) + "\n"
 		} else {
-			out += line + "\n"
+			label := formatLabelAlignedStyled(e.Name, m.displayNames[e.Name], availW, "")
+			out += prefix + label + styleDim.Render("  "+sizeField) + "\n"
 		}
 		linesLeft--
 	}
@@ -2356,23 +2356,36 @@ func (m ignoredModel) view() string {
 		if m.sel[i] {
 			prefix = "► "
 		}
-		label := formatLabelAligned(e.Name, e.DisplayName, m.width-5-lipgloss.Width(prefix), "")
-		var line string
-		if e.SourcePath == "" {
-			line = prefix + styleDim.Render(label+"  (no file)")
-		} else if m.ps.isPlaying(e.SourcePath) {
-			prefix = "▶ "
-			line = prefix + label
-		} else if _, err := os.Stat(e.SourcePath); err != nil {
-			line = prefix + styleDim.Render(label+"  (device not mounted)")
+		availW := m.width - 5 - lipgloss.Width(prefix)
+		if i == m.cursor || m.sel[i] {
+			label := formatLabelAligned(e.Name, e.DisplayName, availW, "")
+			var line string
+			if e.SourcePath == "" {
+				line = prefix + styleDim.Render(label+"  (no file)")
+			} else if m.ps.isPlaying(e.SourcePath) {
+				line = "▶ " + label
+			} else if _, err := os.Stat(e.SourcePath); err != nil {
+				line = prefix + styleDim.Render(label+"  (device not mounted)")
+			} else {
+				line = prefix + label
+			}
+			if i == m.cursor {
+				out += styleSelected.Render(line) + "\n"
+			} else {
+				out += styleMultiSel.Render(line) + "\n"
+			}
 		} else {
-			line = prefix + label
-		}
-		if i == m.cursor {
-			out += styleSelected.Render(line) + "\n"
-		} else if m.sel[i] {
-			out += styleMultiSel.Render(line) + "\n"
-		} else {
+			label := formatLabelAlignedStyled(e.Name, e.DisplayName, availW, "")
+			var line string
+			if e.SourcePath == "" {
+				line = prefix + label + styleDim.Render("  (no file)")
+			} else if m.ps.isPlaying(e.SourcePath) {
+				line = "▶ " + label
+			} else if _, err := os.Stat(e.SourcePath); err != nil {
+				line = prefix + label + styleDim.Render("  (device not mounted)")
+			} else {
+				line = prefix + label
+			}
 			out += line + "\n"
 		}
 		linesLeft--
