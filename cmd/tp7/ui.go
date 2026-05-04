@@ -562,6 +562,28 @@ func moveFileCmd(lib *storage.Library, srcTopic, dstTopic, fileName string) tea.
 	}
 }
 
+// ── library topic-rename dialog ─────────────────────────────────────────────
+
+type topicRenameDialog struct {
+	active  bool
+	oldName string
+	input   string
+	errMsg  string
+}
+
+type renameTopicDoneMsg struct {
+	oldName string
+	newName string
+	err     error
+}
+
+func renameTopicCmd(lib *storage.Library, oldName, newName string) tea.Cmd {
+	return func() tea.Msg {
+		err := lib.RenameTopic(oldName, newName)
+		return renameTopicDoneMsg{oldName: oldName, newName: newName, err: err}
+	}
+}
+
 // ── library model (1) ────────────────────────────────────────────────────────
 
 type topicNode struct {
@@ -580,17 +602,18 @@ type flatRow struct {
 }
 
 type libraryModel struct {
-	lib     *storage.Library
-	topics  []topicNode
-	cursor  int
-	height  int
-	width   int
-	status  string
-	dialog  newTopicDialog
-	confirm libConfirmDialog
-	move    libMoveDialog
-	rename  renameDialog
-	ps      playerState
+	lib         *storage.Library
+	topics      []topicNode
+	cursor      int
+	height      int
+	width       int
+	status      string
+	dialog      newTopicDialog
+	confirm     libConfirmDialog
+	move        libMoveDialog
+	topicRename topicRenameDialog
+	rename      renameDialog
+	ps          playerState
 }
 
 func newLibraryModel(lib *storage.Library) libraryModel {
@@ -717,6 +740,15 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 		if m.lib != nil {
 			m.dialog = newTopicDialog{active: true}
 		}
+	case "R":
+		if m.lib != nil && m.cursor < len(rows) && rows[m.cursor].isTopic {
+			row := rows[m.cursor]
+			m.topicRename = topicRenameDialog{
+				active:  true,
+				oldName: m.topics[row.topicIdx].name,
+				input:   m.topics[row.topicIdx].name,
+			}
+		}
 	case "r":
 		if m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
 			row := rows[m.cursor]
@@ -746,6 +778,35 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 				topicName: m.topics[row.topicIdx].name,
 				fileName:  m.topics[row.topicIdx].files[row.fileIdx],
 			}
+		}
+	}
+	return m, nil
+}
+
+func (m libraryModel) handleTopicRenameKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.topicRename = topicRenameDialog{}
+	case "enter":
+		name := strings.TrimSpace(m.topicRename.input)
+		if name == "" {
+			m.topicRename.errMsg = "Name must not be empty"
+			return m, nil
+		}
+		if name == m.topicRename.oldName {
+			m.topicRename = topicRenameDialog{}
+			return m, nil
+		}
+		m.topicRename.errMsg = ""
+		return m, renameTopicCmd(m.lib, m.topicRename.oldName, name)
+	case "backspace", "ctrl+h":
+		if len(m.topicRename.input) > 0 {
+			runes := []rune(m.topicRename.input)
+			m.topicRename.input = string(runes[:len(runes)-1])
+		}
+	default:
+		if r := msg.Runes; len(r) > 0 {
+			m.topicRename.input += string(r)
 		}
 	}
 	return m, nil
@@ -948,6 +1009,21 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			}
 		}
 
+	case renameTopicDoneMsg:
+		if msg.err != nil {
+			m.topicRename.errMsg = fmt.Sprintf("Error: %v", msg.err)
+			return m, nil
+		}
+		m.topicRename = topicRenameDialog{}
+		// Update the topic name in-memory.
+		for i := range m.topics {
+			if m.topics[i].name == msg.oldName {
+				m.topics[i].name = msg.newName
+				break
+			}
+		}
+		return m, loadTopicsCmd(m.lib)
+
 	case playbackTickMsg:
 		if m.ps.onTick() {
 			return m, tickCmd()
@@ -968,6 +1044,9 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		}
 		if m.move.active {
 			return m.handleMoveKey(msg)
+		}
+		if m.topicRename.active {
+			return m.handleTopicRenameKey(msg)
 		}
 		if m.rename.active {
 			return m.handleRenameKey(msg)
@@ -1034,6 +1113,9 @@ func (m libraryModel) view() string {
 	if m.move.active {
 		out += m.renderMoveDialog()
 	}
+	if m.topicRename.active {
+		out += m.renderTopicRenameDialog()
+	}
 	if m.rename.active {
 		out += m.renderRenameDialog()
 	}
@@ -1065,6 +1147,17 @@ func (m libraryModel) renderConfirmDialog() string {
 	)
 	if m.confirm.errMsg != "" {
 		body += "\n" + styleDialogErr.Render(m.confirm.errMsg)
+	}
+	return "\n" + styleDialog.Render(body) + "\n"
+}
+
+func (m libraryModel) renderTopicRenameDialog() string {
+	prompt := "Rename topic: " + m.topicRename.input + "█"
+	var body string
+	if m.topicRename.errMsg != "" {
+		body = prompt + "\n" + styleDialogErr.Render(m.topicRename.errMsg)
+	} else {
+		body = prompt + "\n" + styleDim.Render("Enter confirm  •  Esc cancel")
 	}
 	return "\n" + styleDialog.Render(body) + "\n"
 }
@@ -2122,7 +2215,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		// Forward everything to active tab when a dialog is open.
-		if m.active == tabLibrary && (m.library.dialog.active || m.library.confirm.mode != libConfirmNone || m.library.move.active || m.library.rename.active) {
+		if m.active == tabLibrary && (m.library.dialog.active || m.library.confirm.mode != libConfirmNone || m.library.move.active || m.library.topicRename.active || m.library.rename.active) {
 			lib, cmd := m.library.update(msg)
 			m.library = lib
 			return m, cmd
@@ -2257,7 +2350,7 @@ func (m rootModel) View() string {
 			footerLines[2] = "n new topic  •  m move  •  r rename"
 		} else {
 			footerLines[1] = "↑/↓ scroll  •  Enter expand"
-			footerLines[2] = "n new topic"
+			footerLines[2] = "n new topic  •  R rename topic"
 		}
 	case tabImport:
 		if len(m.imports.entries) > 0 && m.imports.dialog.mode == importDialogNone {

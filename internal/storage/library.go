@@ -275,6 +275,47 @@ func (l *Library) UnmarkFile(filename string) error {
 	return nil
 }
 
+// RenameTopic renames a topic directory on disk and updates every mark file
+// that was recorded with the old topic name (ActionCopied entries).
+func (l *Library) RenameTopic(oldName, newName string) error {
+	if oldName == "" || newName == "" {
+		return fmt.Errorf("topic names must not be empty")
+	}
+	oldPath := filepath.Join(l.Path, oldName)
+	newPath := filepath.Join(l.Path, newName)
+	if _, err := os.Stat(newPath); err == nil {
+		return fmt.Errorf("topic %q already exists", newName)
+	}
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return fmt.Errorf("renaming topic %q to %q: %w", oldName, newName, err)
+	}
+	// Update every mark file that still references the old topic name.
+	marksDir := filepath.Join(l.Path, markedDir)
+	entries, err := os.ReadDir(marksDir)
+	if err != nil {
+		return nil // non-fatal; directory rename already succeeded
+	}
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".yaml" {
+			continue
+		}
+		filename := strings.TrimSuffix(e.Name(), ".yaml")
+		m, err := l.ReadMark(filename)
+		if err != nil || m == nil {
+			continue
+		}
+		if m.Action == ActionCopied && m.Topic == oldName {
+			m.Topic = newName
+			data, err := yaml.Marshal(m)
+			if err != nil {
+				continue
+			}
+			_ = os.WriteFile(l.markFilePath(filename), data, 0o644)
+		}
+	}
+	return nil
+}
+
 // MoveToTopic moves a file from one topic directory to another and updates the mark.
 // It uses os.Rename for an atomic move within the same filesystem, falling back to
 // a copy-then-delete if the source and destination are on different filesystems.
