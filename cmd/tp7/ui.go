@@ -367,7 +367,7 @@ func playCmd(p *playback.Player, path string) tea.Cmd {
 }
 
 func tickCmd() tea.Cmd {
-	return tea.Tick(500*time.Millisecond, func(time.Time) tea.Msg {
+	return tea.Tick(100*time.Millisecond, func(time.Time) tea.Msg {
 		return playbackTickMsg{}
 	})
 }
@@ -1188,11 +1188,7 @@ func (m libraryModel) view() string {
 				prefix = "  ▶ "
 			}
 			label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], m.width-5-len(prefix))
-			if m.ps.isPlaying(path) {
-				line = prefix + label + "  " + m.ps.timeLabel()
-			} else {
-				line = prefix + label
-			}
+			line = prefix + label
 		}
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
@@ -1705,7 +1701,7 @@ func (m importModel) view() string {
 		var line string
 		if m.ps.isPlaying(e.Path) {
 			prefix = "▶ "
-			line = prefix + label + "  " + sizeStr + "  " + m.ps.timeLabel()
+			line = prefix + label + "  " + sizeStr
 		} else {
 			line = prefix + label + "  " + sizeStr
 		}
@@ -2223,7 +2219,7 @@ func (m ignoredModel) view() string {
 			line = prefix + styleDim.Render(label+"  (no file)")
 		} else if m.ps.isPlaying(e.SourcePath) {
 			prefix = "▶ "
-			line = prefix + label + "  " + m.ps.timeLabel()
+			line = prefix + label
 		} else if _, err := os.Stat(e.SourcePath); err != nil {
 			line = prefix + styleDim.Render(label+"  (device not mounted)")
 		} else {
@@ -2418,7 +2414,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // Layout constants — must match the rows rendered in View().
 const (
 	headerHeight = 2 // tabBar + blank line
-	footerHeight = 3 // 3 footer lines
+	footerHeight = 4 // playback line + 3 key-hint lines
 )
 
 func (m rootModel) View() string {
@@ -2491,7 +2487,8 @@ func (m rootModel) View() string {
 			footerLines[1] = "↑/↓ scroll"
 		}
 	}
-	footer := styleDim.Render(footerLines[0]) + "\n" +
+	footer := m.playbackLine() + "\n" +
+		styleDim.Render(footerLines[0]) + "\n" +
 		styleDim.Render(footerLines[1]) + "\n" +
 		styleDim.Render(footerLines[2])
 
@@ -2501,6 +2498,24 @@ func (m rootModel) View() string {
 	}
 	pinnedContent := lipgloss.NewStyle().Height(contentHeight).Render(content)
 	return tabBar + "\n\n" + pinnedContent + "\n" + footer
+}
+
+// playbackLine returns a one-line playback status for the active tab's player,
+// or an empty string when nothing is playing.
+func (m rootModel) playbackLine() string {
+	var label string
+	switch m.active {
+	case tabLibrary:
+		label = m.library.ps.timeLabel()
+	case tabImport:
+		label = m.imports.ps.timeLabel()
+	case tabIgnored:
+		label = m.ignored.ps.timeLabel()
+	}
+	if label == "" {
+		return ""
+	}
+	return styleTitle.Render("▶  " + label)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
