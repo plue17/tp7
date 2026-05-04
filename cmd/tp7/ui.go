@@ -21,7 +21,8 @@ var (
 	styleTitle     = lipgloss.NewStyle().Bold(true)
 	styleSelected  = lipgloss.NewStyle().Reverse(true)
 	styleDim       = lipgloss.NewStyle().Faint(true)
-	styleFileName  = lipgloss.NewStyle().Foreground(lipgloss.Color("15")) // bright white
+	styleFileName  = lipgloss.NewStyle().Foreground(lipgloss.Color("15"))  // bright white
+	styleTopic     = lipgloss.NewStyle().Foreground(lipgloss.Color("166")) // dark orange
 	styleTab       = lipgloss.NewStyle().Padding(0, 1)
 	styleActiveTab = lipgloss.NewStyle().Padding(0, 1).Bold(true).Underline(true)
 	styleDialog    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)
@@ -661,9 +662,10 @@ func batchCopyFromIgnoredCmd(lib *storage.Library, entries []storage.IgnoredEntr
 type libConfirmMode int
 
 const (
-	libConfirmNone   libConfirmMode = iota
-	libConfirmDelete                // remove from topic + unmark
-	libConfirmIgnore                // remove from topic + mark as ignored
+	libConfirmNone        libConfirmMode = iota
+	libConfirmDelete                     // remove from topic + unmark
+	libConfirmIgnore                     // remove from topic + mark as ignored
+	libConfirmDeleteTopic                // delete entire topic and all its files
 )
 
 type libConfirmDialog struct {
@@ -736,10 +738,22 @@ type renameTopicDoneMsg struct {
 	err     error
 }
 
+type deleteTopicDoneMsg struct {
+	topicName string
+	err       error
+}
+
 func renameTopicCmd(lib *storage.Library, oldName, newName string) tea.Cmd {
 	return func() tea.Msg {
 		err := lib.RenameTopic(oldName, newName)
 		return renameTopicDoneMsg{oldName: oldName, newName: newName, err: err}
+	}
+}
+
+func deleteTopicCmd(lib *storage.Library, name string) tea.Cmd {
+	return func() tea.Msg {
+		err := lib.DeleteTopic(name)
+		return deleteTopicDoneMsg{topicName: name, err: err}
 	}
 }
 
@@ -848,6 +862,8 @@ func (m libraryModel) handleConfirmKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 			return m, removeFromTopicCmd(m.lib, m.confirm.topicName, m.confirm.fileName)
 		case libConfirmIgnore:
 			return m, ignoreInTopicCmd(m.lib, m.confirm.topicName, m.confirm.fileName)
+		case libConfirmDeleteTopic:
+			return m, deleteTopicCmd(m.lib, m.confirm.topicName)
 		}
 	case "n", "esc":
 		m.confirm = libConfirmDialog{}
@@ -934,17 +950,29 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 			row := rows[m.cursor]
 			return m, loadMoveTopicsCmd(m.lib, m.topics[row.topicIdx].name, m.topics[row.topicIdx].files[row.fileIdx])
 		}
-	case "i", "delete":
+	case "i":
 		if m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
 			row := rows[m.cursor]
-			mode := libConfirmIgnore
-			if msg.String() == "delete" {
-				mode = libConfirmDelete
-			}
 			m.confirm = libConfirmDialog{
-				mode:      mode,
+				mode:      libConfirmIgnore,
 				topicName: m.topics[row.topicIdx].name,
 				fileName:  m.topics[row.topicIdx].files[row.fileIdx],
+			}
+		}
+	case "delete":
+		if m.lib != nil && m.cursor < len(rows) {
+			row := rows[m.cursor]
+			if row.isTopic {
+				m.confirm = libConfirmDialog{
+					mode:      libConfirmDeleteTopic,
+					topicName: m.topics[row.topicIdx].name,
+				}
+			} else {
+				m.confirm = libConfirmDialog{
+					mode:      libConfirmDelete,
+					topicName: m.topics[row.topicIdx].name,
+					fileName:  m.topics[row.topicIdx].files[row.fileIdx],
+				}
 			}
 		}
 	}
@@ -1193,6 +1221,25 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		}
 		return m, loadTopicsCmd(m.lib)
 
+	case deleteTopicDoneMsg:
+		if msg.err != nil {
+			m.confirm.errMsg = fmt.Sprintf("Error: %v", msg.err)
+			return m, nil
+		}
+		m.confirm = libConfirmDialog{}
+		for i := range m.topics {
+			if m.topics[i].name == msg.topicName {
+				m.ps.stop()
+				m.topics = append(m.topics[:i], m.topics[i+1:]...)
+				if m.cursor >= len(m.topics) && m.cursor > 0 {
+					m.cursor--
+				}
+				break
+			}
+		}
+		m.status = fmt.Sprintf("%d Topic(s)", len(m.topics))
+		return m, loadTopicsCmd(m.lib)
+
 	case playbackTickMsg:
 		if m.ps.onTick() {
 			return m, tickCmd()
@@ -1242,36 +1289,8 @@ func (m libraryModel) view() string {
 		start = max(0, len(rows)-listHeight)
 	}
 	var out string
-	now := time.Now()
-	// Pre-compute which file rows start a new time group within their topic.
-	lastGroupByTopic := map[int]string{}
-	groupStarters := map[int]string{} // row index → group label
-	for idx, row := range rows {
-		if row.isTopic {
-			continue
-		}
-		f := m.topics[row.topicIdx].files[row.fileIdx]
-		grp := ""
-		if t, ok := storage.ParseFilenameTime(f); ok {
-			grp = timeGroup(t, now)
-		}
-		if grp != "" && grp != lastGroupByTopic[row.topicIdx] {
-			groupStarters[idx] = grp
-			lastGroupByTopic[row.topicIdx] = grp
-		}
-	}
 	for i, linesLeft := start, listHeight; i < len(rows) && linesLeft > 0; i++ {
 		row := rows[i]
-		// Emit group header if this file row starts a new group.
-		if !row.isTopic {
-			if grp, ok := groupStarters[i]; ok {
-				out += groupHeader(grp)
-				linesLeft--
-				if linesLeft == 0 {
-					break
-				}
-			}
-		}
 		var line string
 		if row.isTopic {
 			t := m.topics[row.topicIdx]
@@ -1279,14 +1298,14 @@ func (m libraryModel) view() string {
 			if t.expanded {
 				arrow = "▼"
 			}
-			line = fmt.Sprintf("%s %s", arrow, t.name)
+			line = styleTopic.Render(fmt.Sprintf("%s %s", arrow, t.name))
 		} else {
 			f := m.topics[row.topicIdx].files[row.fileIdx]
 			topicName := m.topics[row.topicIdx].name
 			path := m.lib.FilePath(topicName, f)
-			prefix := "  └ "
+			prefix := "  "
 			if m.ps.isPlaying(path) {
-				prefix = "  ▶ "
+				prefix = "▶ "
 			}
 			availWidth := m.width - 5 - lipgloss.Width(prefix)
 			durStr := formatDuration(m.topics[row.topicIdx].durations[f])
@@ -1346,6 +1365,8 @@ func (m libraryModel) renderConfirmDialog() string {
 		action = "Remove file from topic and delete mark?"
 	case libConfirmIgnore:
 		action = "Remove file from topic and ignore?"
+	case libConfirmDeleteTopic:
+		action = fmt.Sprintf("Delete topic %q and all its files?", m.confirm.topicName)
 	}
 	body := fmt.Sprintf("%s\n\n%s\n\n%s",
 		action,
@@ -1808,20 +1829,8 @@ func (m importModel) view() string {
 		start = max(0, len(m.entries)-listHeight)
 	}
 	var out string
-	now := time.Now()
-	lastGroup := ""
 	for i, linesLeft := start, listHeight; i < len(m.entries) && linesLeft > 0; i++ {
 		e := m.entries[i]
-		if t, ok := storage.ParseFilenameTime(e.Name); ok {
-			if grp := timeGroup(t, now); grp != lastGroup {
-				out += groupHeader(grp)
-				lastGroup = grp
-				linesLeft--
-				if linesLeft == 0 {
-					break
-				}
-			}
-		}
 		prefix := "  "
 		if m.sel[i] {
 			prefix = "► "
@@ -2338,20 +2347,8 @@ func (m ignoredModel) view() string {
 		start = max(0, len(m.entries)-listHeight)
 	}
 	var out string
-	now := time.Now()
-	lastGroup := ""
 	for i, linesLeft := start, listHeight; i < len(m.entries) && linesLeft > 0; i++ {
 		e := m.entries[i]
-		if t, ok := storage.ParseFilenameTime(e.Name); ok {
-			if grp := timeGroup(t, now); grp != lastGroup {
-				out += groupHeader(grp)
-				lastGroup = grp
-				linesLeft--
-				if linesLeft == 0 {
-					break
-				}
-			}
-		}
 		prefix := "  "
 		if m.sel[i] {
 			prefix = "► "
@@ -2714,7 +2711,7 @@ func (m rootModel) helpLines() []string {
 			"  Enter         expand / collapse topic",
 			"  Space         play / pause file",
 			"  i             ignore file",
-			"  Del           delete file",
+			"  Del           delete file  /  delete topic",
 			"  m             move file to topic",
 			"  r             rename file",
 			"  n             new topic",

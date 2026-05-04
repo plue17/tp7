@@ -498,6 +498,21 @@ func (l *Library) MoveToTopic(srcTopicName, dstTopicName, filename string) error
 	return l.MarkFile(filename, ActionCopied, dstTopicName, "", 0)
 }
 
+// DeleteTopic removes a topic directory and all files in it, and clears the
+// mark for every file that was stored inside the topic.
+func (l *Library) DeleteTopic(name string) error {
+	// List files before removal so we can unmark them afterwards.
+	files, _ := l.TopicFiles(name)
+	topicPath := filepath.Join(l.Path, name)
+	if err := os.RemoveAll(topicPath); err != nil {
+		return fmt.Errorf("deleting topic %q: %w", name, err)
+	}
+	for _, f := range files {
+		_ = l.UnmarkFile(f)
+	}
+	return nil
+}
+
 // RemoveFromTopic deletes a file from a topic's directory.
 func (l *Library) RemoveFromTopic(topicName, filename string) error {
 	path := filepath.Join(l.Path, topicName, filename)
