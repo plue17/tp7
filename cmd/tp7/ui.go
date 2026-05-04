@@ -1699,7 +1699,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
-		inner := tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - 3}
+		inner := tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - headerHeight - footerHeight}
 		lib, c1 := m.library.update(inner)
 		imp, c2 := m.imports.update(inner)
 		ign, c3 := m.ignored.update(inner)
@@ -1787,6 +1787,12 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(c1, c2, c3)
 }
 
+// Layout constants — must match the rows rendered in View().
+const (
+	headerHeight = 2 // tabBar + blank line
+	footerHeight = 3 // 3 footer lines
+)
+
 func (m rootModel) View() string {
 	libTab := styleTab.Render("1 Library")
 	impTab := styleTab.Render("2 Import")
@@ -1828,31 +1834,45 @@ func (m rootModel) View() string {
 		content = m.ignored.view()
 	}
 
-	var footerParts string
+	var footerLines [3]string
+	footerLines[0] = "1/2/3 switch tab  •  q quit"
 	switch m.active {
 	case tabLibrary:
 		libRows := m.library.buildRows()
 		onFile := len(libRows) > 0 && m.library.cursor < len(libRows) && !libRows[m.library.cursor].isTopic
 		if onFile {
-			footerParts = "↑/↓ scroll  •  Space play/stop  •  ←/→ seek 10s  •  i ignore  •  Del delete  •  n new topic  •  r reload  •  q quit"
+			footerLines[1] = "Space play/stop  •  ←/→ seek 10s  •  i ignore  •  Del delete"
+			footerLines[2] = "n new topic  •  r reload"
 		} else {
-			footerParts = "↑/↓ scroll  •  Enter expand  •  n new topic  •  r reload  •  q quit"
+			footerLines[1] = "↑/↓ scroll  •  Enter expand"
+			footerLines[2] = "n new topic  •  r reload"
 		}
 	case tabImport:
 		if len(m.imports.entries) > 0 && m.imports.dialog.mode == importDialogNone {
-			footerParts = "↑/↓ scroll  •  Space play/stop  •  ←/→ seek 10s  •  Shift+↑/↓ multi-select  •  a all  •  d none  •  i ignore  •  c copy  •  q quit"
+			footerLines[1] = "Space play/stop  •  ←/→ seek 10s  •  ↑/↓ scroll"
+			footerLines[2] = "Shift+↑/↓ multi-select  •  a all  •  d none  •  i ignore  •  c copy"
 		} else {
-			footerParts = "↑/↓ scroll  •  q quit"
+			footerLines[1] = "↑/↓ scroll"
 		}
 	case tabIgnored:
 		if len(m.ignored.entries) > 0 && m.ignored.dialog.mode == ignoredDialogNone {
-			footerParts = "↑/↓ scroll  •  Space play/stop  •  ←/→ seek 10s  •  Shift+↑/↓ multi-select  •  a all  •  d none  •  c copy to topic  •  Del unmark  •  r reload  •  q quit"
+			footerLines[0] = "1/2/3 switch tab  •  q quit  •  a all  •  d none"
+			footerLines[1] = "Space play/stop  •  ←/→ seek 10s  •  ↑/↓ scroll"
+			footerLines[2] = "Shift+↑/↓ multi-select  •  c copy to topic  •  Del unmark  •  r reload"
 		} else {
-			footerParts = "↑/↓ scroll  •  r reload  •  q quit"
+			footerLines[1] = "↑/↓ scroll  •  r reload"
 		}
 	}
-	footer := styleDim.Render("1/2/3 switch tab  •  " + footerParts)
-	return tabBar + "\n\n" + content + "\n" + footer
+	footer := styleDim.Render(footerLines[0]) + "\n" +
+		styleDim.Render(footerLines[1]) + "\n" +
+		styleDim.Render(footerLines[2])
+
+	contentHeight := m.height - headerHeight - footerHeight
+	if contentHeight < 1 {
+		contentHeight = 1
+	}
+	pinnedContent := lipgloss.NewStyle().Height(contentHeight).Render(content)
+	return tabBar + "\n\n" + pinnedContent + "\n" + footer
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
