@@ -2378,12 +2378,13 @@ func (m ignoredModel) renderRenameDialog() string {
 // ── root model ────────────────────────────────────────────────────────────────
 
 type rootModel struct {
-	active  tab
-	library libraryModel
-	imports importModel
-	ignored ignoredModel
-	height  int
-	width   int
+	active   tab
+	library  libraryModel
+	imports  importModel
+	ignored  ignoredModel
+	height   int
+	width    int
+	showHelp bool
 }
 
 func newRootModel(lib *storage.Library, ch <-chan []importer.Entry) rootModel {
@@ -2414,7 +2415,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(c1, c2, c3)
 
 	case tea.KeyMsg:
-		// Forward everything to active tab when a dialog is open.
+		// Forward everything to active tab when a tab dialog is open.
 		if m.active == tabLibrary && (m.library.dialog.active || m.library.confirm.mode != libConfirmNone || m.library.move.active || m.library.topicRename.active || m.library.rename.active) {
 			lib, cmd := m.library.update(msg)
 			m.library = lib
@@ -2432,7 +2433,19 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch msg.String() {
 		case "ctrl+c", "q", "Q":
+			if m.showHelp {
+				m.showHelp = false
+				return m, nil
+			}
 			return m, tea.Quit
+		case "h", "H":
+			m.showHelp = !m.showHelp
+			return m, nil
+		case "esc":
+			if m.showHelp {
+				m.showHelp = false
+				return m, nil
+			}
 		case "1":
 			m.imports.ps.stop()
 			m.ignored.ps.stop()
@@ -2448,6 +2461,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.imports.ps.stop()
 			m.active = tabIgnored
 			return m, loadIgnoredCmd(m.ignored.lib)
+		}
+		// When help overlay is open, swallow all remaining keys.
+		if m.showHelp {
+			return m, nil
 		}
 		// route key to the active tab only
 		switch m.active {
@@ -2495,7 +2512,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // Layout constants — must match the rows rendered in View().
 const (
 	headerHeight = 2 // tabBar + blank line
-	footerHeight = 4 // playback line + 3 key-hint lines
+	footerHeight = 2 // playback line + h-for-help line
 )
 
 func (m rootModel) View() string {
@@ -2539,46 +2556,18 @@ func (m rootModel) View() string {
 		content = m.ignored.view()
 	}
 
-	var footerLines [3]string
-	footerLines[0] = "1/2/3 switch tab  •  q quit"
-	switch m.active {
-	case tabLibrary:
-		libRows := m.library.buildRows()
-		onFile := len(libRows) > 0 && m.library.cursor < len(libRows) && !libRows[m.library.cursor].isTopic
-		if onFile {
-			footerLines[1] = "Space pause/resume  •  ←/→ 5s  Shift 30s  Ctrl 1min  •  i ignore  •  Del delete"
-			footerLines[2] = "n new topic  •  m move  •  r rename"
-		} else {
-			footerLines[1] = "↑/↓ scroll  •  Enter expand"
-			footerLines[2] = "n new topic  •  R rename topic"
-		}
-	case tabImport:
-		if len(m.imports.entries) > 0 && m.imports.dialog.mode == importDialogNone {
-			footerLines[1] = "Space pause/resume  •  ←/→ 5s  Shift 30s  Ctrl 1min  •  ↑/↓ scroll"
-			footerLines[2] = "Shift+↑/↓ multi-select  •  a all  •  d none  •  i ignore  •  c copy  •  r rename"
-		} else {
-			footerLines[1] = "↑/↓ scroll"
-		}
-	case tabIgnored:
-		if len(m.ignored.entries) > 0 && m.ignored.dialog.mode == ignoredDialogNone {
-			footerLines[0] = "1/2/3 switch tab  •  q quit  •  a all  •  d none"
-			footerLines[1] = "Space pause/resume  •  ←/→ 5s  Shift 30s  Ctrl 1min  •  ↑/↓ scroll"
-			footerLines[2] = "Shift+↑/↓ multi-select  •  c copy to topic  •  Del unmark  •  r rename"
-		} else {
-			footerLines[1] = "↑/↓ scroll"
-		}
-	}
-	footer := m.playbackLine() + "\n" +
-		styleDim.Render(footerLines[0]) + "\n" +
-		styleDim.Render(footerLines[1]) + "\n" +
-		styleDim.Render(footerLines[2])
+	footer := m.playbackLine() + "\n" + styleDim.Render("h for help  •  q quit")
 
 	contentHeight := m.height - headerHeight - footerHeight
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
 	pinnedContent := lipgloss.NewStyle().Height(contentHeight).Render(content)
-	return tabBar + "\n\n" + pinnedContent + "\n" + footer
+	out := tabBar + "\n\n" + pinnedContent + "\n" + footer
+	if m.showHelp {
+		out = m.renderHelpOverlay(out)
+	}
+	return out
 }
 
 // playbackLine returns a one-line playback status for the active tab's player,
@@ -2605,6 +2594,93 @@ func (m rootModel) playbackLine() string {
 		line += "  " + bar
 	}
 	return styleTitle.Render(line)
+}
+
+// helpLines returns the context-sensitive help text for the current tab.
+func (m rootModel) helpLines() []string {
+	global := []string{
+		"Global",
+		"  1 / 2 / 3     switch tab",
+		"  h             toggle this help",
+		"  q  /  Ctrl+C  quit",
+		"",
+	}
+	playback := []string{
+		"Playback (all tabs)",
+		"  Space          pause / resume",
+		"  ←  /  →        seek ±5 s",
+		"  Shift+←/→      seek ±30 s",
+		"  Ctrl+←/→       seek ±1 min",
+		"",
+	}
+	var specific []string
+	switch m.active {
+	case tabLibrary:
+		specific = []string{
+			"Library (Tab 1)",
+			"  ↑ / ↓         move cursor",
+			"  Enter         expand / collapse topic",
+			"  Space         play / pause file",
+			"  i             ignore file",
+			"  Del           delete file",
+			"  m             move file to topic",
+			"  r             rename file",
+			"  n             new topic",
+			"  R             rename topic",
+		}
+	case tabImport:
+		specific = []string{
+			"Import (Tab 2)",
+			"  ↑ / ↓         move cursor",
+			"  Shift+↑/↓     extend selection",
+			"  a / d         select all / none",
+			"  Space         play / pause file",
+			"  i             ignore selected",
+			"  c             copy to topic",
+			"  r             rename file",
+		}
+	case tabIgnored:
+		specific = []string{
+			"Ignored (Tab 3)",
+			"  ↑ / ↓         move cursor",
+			"  Shift+↑/↓     extend selection",
+			"  a / d         select all / none",
+			"  Space         play / pause file",
+			"  c             copy to topic",
+			"  Del           unmark (remove from ignored)",
+			"  r             rename file",
+		}
+	}
+	lines := append(global, playback...)
+	lines = append(lines, specific...)
+	lines = append(lines, "", "  Esc / h  close")
+	return lines
+}
+
+// renderHelpOverlay places a centered help box on top of the rendered screen.
+func (m rootModel) renderHelpOverlay(screen string) string {
+	lines := m.helpLines()
+
+	// Find the longest line to determine box width.
+	maxLen := 0
+	for _, l := range lines {
+		if w := lipgloss.Width(l); w > maxLen {
+			maxLen = w
+		}
+	}
+	boxWidth := maxLen + 6 // 2 padding + 2 border on each side
+	if boxWidth > m.width-4 {
+		boxWidth = m.width - 4
+	}
+
+	content := strings.Join(lines, "\n")
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(1, 2).
+		Width(boxWidth).
+		Render(content)
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
