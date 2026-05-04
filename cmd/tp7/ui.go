@@ -1263,22 +1263,26 @@ func (m libraryModel) view() string {
 		}
 		linesLeft--
 	}
+	return out
+}
+
+func (m libraryModel) overlayContent() string {
 	if m.dialog.active {
-		out += m.renderDialog()
+		return m.renderDialog()
 	}
 	if m.confirm.mode != libConfirmNone {
-		out += m.renderConfirmDialog()
+		return m.renderConfirmDialog()
 	}
 	if m.move.active {
-		out += m.renderMoveDialog()
+		return m.renderMoveDialog()
 	}
 	if m.topicRename.active {
-		out += m.renderTopicRenameDialog()
+		return m.renderTopicRenameDialog()
 	}
 	if m.rename.active {
-		out += m.renderRenameDialog()
+		return m.renderRenameDialog()
 	}
-	return out
+	return ""
 }
 
 func (m libraryModel) renderDialog() string {
@@ -1289,7 +1293,7 @@ func (m libraryModel) renderDialog() string {
 	} else {
 		body = prompt + "\n" + styleDim.Render("Enter confirm  •  Esc cancel")
 	}
-	return "\n" + styleDialog.Render(body) + "\n"
+	return styleDialog.Render(body)
 }
 func (m libraryModel) renderConfirmDialog() string {
 	var action string
@@ -1307,7 +1311,7 @@ func (m libraryModel) renderConfirmDialog() string {
 	if m.confirm.errMsg != "" {
 		body += "\n" + styleDialogErr.Render(m.confirm.errMsg)
 	}
-	return "\n" + styleDialog.Render(body) + "\n"
+	return styleDialog.Render(body)
 }
 
 func (m libraryModel) renderTopicRenameDialog() string {
@@ -1318,7 +1322,7 @@ func (m libraryModel) renderTopicRenameDialog() string {
 	} else {
 		body = prompt + "\n" + styleDim.Render("Enter confirm  •  Esc cancel")
 	}
-	return "\n" + styleDialog.Render(body) + "\n"
+	return styleDialog.Render(body)
 }
 
 func (m libraryModel) renderMoveDialog() string {
@@ -1340,7 +1344,7 @@ func (m libraryModel) renderMoveDialog() string {
 	if m.move.errMsg != "" {
 		body += "\n" + styleDialogErr.Render(m.move.errMsg)
 	}
-	return "\n" + styleDialog.Render(body) + "\n"
+	return styleDialog.Render(body)
 }
 
 func (m libraryModel) renderRenameDialog() string {
@@ -1351,7 +1355,7 @@ func (m libraryModel) renderRenameDialog() string {
 	} else {
 		body = prompt + "\n" + styleDim.Render("Enter confirm  •  Esc cancel")
 	}
-	return "\n" + styleDialog.Render(body) + "\n"
+	return styleDialog.Render(body)
 }
 
 // ── import dialog ─────────────────────────────────────────────────────────────
@@ -1787,13 +1791,17 @@ func (m importModel) view() string {
 		}
 		linesLeft--
 	}
+	return out
+}
+
+func (m importModel) overlayContent() string {
 	if m.dialog.mode != importDialogNone {
-		out += m.renderDialog()
+		return m.renderDialog()
 	}
 	if m.rename.active {
-		out += m.renderRenameDialog()
+		return m.renderRenameDialog()
 	}
-	return out
+	return ""
 }
 
 func (m importModel) renderDialog() string {
@@ -1836,7 +1844,7 @@ func (m importModel) renderDialog() string {
 	if m.dialog.errMsg != "" {
 		body += "\n" + styleDialogErr.Render(m.dialog.errMsg)
 	}
-	return "\n" + styleDialog.Render(body) + "\n"
+	return styleDialog.Render(body)
 }
 
 func (m importModel) renderRenameDialog() string {
@@ -1847,7 +1855,7 @@ func (m importModel) renderRenameDialog() string {
 	} else {
 		body = prompt + "\n" + styleDim.Render("Enter confirm  •  Esc cancel")
 	}
-	return "\n" + styleDialog.Render(body) + "\n"
+	return styleDialog.Render(body)
 }
 
 // ── ignored model (3) ───────────────────────────────────────────────────────
@@ -2315,13 +2323,17 @@ func (m ignoredModel) view() string {
 		}
 		linesLeft--
 	}
+	return out
+}
+
+func (m ignoredModel) overlayContent() string {
 	if m.dialog.mode != ignoredDialogNone {
-		out += m.renderDialog()
+		return m.renderDialog()
 	}
 	if m.rename.active {
-		out += m.renderRenameDialog()
+		return m.renderRenameDialog()
 	}
-	return out
+	return ""
 }
 
 func (m ignoredModel) renderDialog() string {
@@ -2361,7 +2373,7 @@ func (m ignoredModel) renderDialog() string {
 	if m.dialog.errMsg != "" {
 		body += "\n" + styleDialogErr.Render(m.dialog.errMsg)
 	}
-	return "\n" + styleDialog.Render(body) + "\n"
+	return styleDialog.Render(body)
 }
 
 func (m ignoredModel) renderRenameDialog() string {
@@ -2372,7 +2384,7 @@ func (m ignoredModel) renderRenameDialog() string {
 	} else {
 		body = prompt + "\n" + styleDim.Render("Enter confirm  •  Esc cancel")
 	}
-	return "\n" + styleDialog.Render(body) + "\n"
+	return styleDialog.Render(body)
 }
 
 // ── root model ────────────────────────────────────────────────────────────────
@@ -2566,6 +2578,19 @@ func (m rootModel) View() string {
 	out := tabBar + "\n\n" + pinnedContent + "\n" + footer
 	if m.showHelp {
 		out = m.renderHelpOverlay(out)
+	} else {
+		var dlg string
+		switch m.active {
+		case tabLibrary:
+			dlg = m.library.overlayContent()
+		case tabImport:
+			dlg = m.imports.overlayContent()
+		case tabIgnored:
+			dlg = m.ignored.overlayContent()
+		}
+		if dlg != "" {
+			out = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dlg)
+		}
 	}
 	return out
 }
