@@ -195,6 +195,28 @@ func formatLabel(filename, displayName string) string {
 	return displayName
 }
 
+// formatLabelAligned is like formatLabel but right-aligns the timestamp within
+// availWidth columns: custom name left-aligned, timestamp at the right edge.
+// Falls back to formatLabel when availWidth <= 0 or no timestamp can be parsed.
+func formatLabelAligned(filename, displayName string, availWidth int) string {
+	ts := storage.DefaultDisplayName(filename)
+	if availWidth <= 0 || ts == "" {
+		return formatLabel(filename, displayName)
+	}
+	isUserName := displayName != "" && displayName != ts
+	name := displayName
+	if !isUserName {
+		name = "no description"
+	}
+	gap := availWidth - len(name) - len(ts)
+	if gap < 1 {
+		// Truncate name to make room for at least one space + timestamp.
+		name = name[:max(0, availWidth-len(ts)-1)]
+		gap = 1
+	}
+	return name + strings.Repeat(" ", gap) + ts
+}
+
 // preferredName returns the display name from the map when present,
 // then falls back to the timestamp parsed from the filename, then the raw filename.
 func preferredName(filename string, displayNames map[string]string) string {
@@ -1157,10 +1179,12 @@ func (m libraryModel) view() string {
 			f := m.topics[row.topicIdx].files[row.fileIdx]
 			topicName := m.topics[row.topicIdx].name
 			path := m.lib.FilePath(topicName, f)
-			label := preferredName(f, m.topics[row.topicIdx].displayNames)
 			prefix := "  └ "
 			if m.ps.isPlaying(path) {
 				prefix = "  ▶ "
+			}
+			label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], m.width-5-len(prefix))
+			if m.ps.isPlaying(path) {
 				line = prefix + label + "  " + m.ps.timeLabel()
 			} else {
 				line = prefix + label
@@ -1667,13 +1691,14 @@ func (m importModel) view() string {
 		if m.sel[i] {
 			prefix = "► "
 		}
-		label := preferredName(e.Name, m.displayNames)
+		sizeStr := formatSize(e.Size)
+		label := formatLabelAligned(e.Name, m.displayNames[e.Name], m.width-5-len(prefix)-2-len(sizeStr))
 		var line string
 		if m.ps.isPlaying(e.Path) {
 			prefix = "▶ "
-			line = fmt.Sprintf("%s%-38s  %8s  %s", prefix, label, formatSize(e.Size), m.ps.timeLabel())
+			line = prefix + label + "  " + sizeStr + "  " + m.ps.timeLabel()
 		} else {
-			line = fmt.Sprintf("%s%-38s  %8s", prefix, label, formatSize(e.Size))
+			line = prefix + label + "  " + sizeStr
 		}
 		if i == m.cursor {
 			out += styleSelected.Render(line) + "\n"
@@ -2178,7 +2203,7 @@ func (m ignoredModel) view() string {
 		if m.sel[i] {
 			prefix = "► "
 		}
-		label := formatLabel(e.Name, e.DisplayName)
+		label := formatLabelAligned(e.Name, e.DisplayName, m.width-5-len(prefix))
 		var line string
 		if e.SourcePath == "" {
 			line = prefix + styleDim.Render(label+"  (no file)")
