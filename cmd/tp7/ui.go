@@ -1461,7 +1461,7 @@ type importModel struct {
 }
 
 func newImportModel(lib *storage.Library, ch <-chan []importer.Entry, stateCh <-chan importer.State) importModel {
-	return importModel{lib: lib, entriesCh: ch, deviceStateCh: stateCh, status: "Waiting for TP-7…", ps: newPlayerState()}
+	return importModel{lib: lib, entriesCh: ch, deviceStateCh: stateCh, status: "Please connect TP-7…", ps: newPlayerState()}
 }
 
 func (m importModel) Init() tea.Cmd {
@@ -1674,7 +1674,7 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 
 	case deviceStateMsg:
 		if msg.state == importer.StateSearching {
-			m.status = "Waiting for TP-7…"
+			m.status = "Please connect TP-7…"
 			m.entries = nil
 			m.sel = nil
 			m.cursor = 0
