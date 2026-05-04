@@ -486,6 +486,23 @@ func (ps playerState) timeLabel() string {
 	return fmtDuration(ps.playPos) + " / " + fmtDuration(ps.playDur)
 }
 
+// progressBar returns a fixed-width bar like [████████░░░░░░░░░░░░] of the given width.
+// Returns "" when idle or duration is zero.
+func (ps playerState) progressBar(width int) string {
+	if ps.playingPath == "" || ps.playDur <= 0 || width <= 0 {
+		return ""
+	}
+	ratio := float64(ps.playPos) / float64(ps.playDur)
+	if ratio < 0 {
+		ratio = 0
+	}
+	if ratio > 1 {
+		ratio = 1
+	}
+	filled := int(ratio * float64(width))
+	return "[" + strings.Repeat("█", filled) + strings.Repeat("░", width-filled) + "]"
+}
+
 func loadTopicsCmd(lib *storage.Library) tea.Cmd {
 	return func() tea.Msg {
 		topics, err := lib.Topics()
@@ -2531,19 +2548,23 @@ func (m rootModel) View() string {
 // playbackLine returns a one-line playback status for the active tab's player,
 // or an empty string when nothing is playing.
 func (m rootModel) playbackLine() string {
-	var label string
+	var ps *playerState
 	switch m.active {
 	case tabLibrary:
-		label = m.library.ps.timeLabel()
+		ps = &m.library.ps
 	case tabImport:
-		label = m.imports.ps.timeLabel()
+		ps = &m.imports.ps
 	case tabIgnored:
-		label = m.ignored.ps.timeLabel()
+		ps = &m.ignored.ps
 	}
-	if label == "" {
+	if ps == nil || ps.playingPath == "" {
 		return ""
 	}
-	return styleTitle.Render("▶  " + label)
+	line := "▶  " + ps.timeLabel()
+	if bar := ps.progressBar(20); bar != "" {
+		line += "  " + bar
+	}
+	return styleTitle.Render(line)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
