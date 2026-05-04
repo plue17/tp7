@@ -1159,12 +1159,16 @@ func (m libraryModel) view() string {
 			lastGroupByTopic[row.topicIdx] = grp
 		}
 	}
-	for i := start; i < start+listHeight && i < len(rows); i++ {
+	for i, linesLeft := start, listHeight; i < len(rows) && linesLeft > 0; i++ {
 		row := rows[i]
 		// Emit group header if this file row starts a new group.
 		if !row.isTopic {
 			if grp, ok := groupStarters[i]; ok {
 				out += groupHeader(grp)
+				linesLeft--
+				if linesLeft == 0 {
+					break
+				}
 			}
 		}
 		var line string
@@ -1197,6 +1201,7 @@ func (m libraryModel) view() string {
 		} else {
 			out += line + "\n"
 		}
+		linesLeft--
 	}
 	if m.dialog.active {
 		out += m.renderDialog()
@@ -1679,12 +1684,16 @@ func (m importModel) view() string {
 	var out string
 	now := time.Now()
 	lastGroup := ""
-	for i := start; i < start+listHeight && i < len(m.entries); i++ {
+	for i, linesLeft := start, listHeight; i < len(m.entries) && linesLeft > 0; i++ {
 		e := m.entries[i]
 		if t, ok := storage.ParseFilenameTime(e.Name); ok {
 			if grp := timeGroup(t, now); grp != lastGroup {
 				out += groupHeader(grp)
 				lastGroup = grp
+				linesLeft--
+				if linesLeft == 0 {
+					break
+				}
 			}
 		}
 		prefix := "  "
@@ -1707,6 +1716,7 @@ func (m importModel) view() string {
 		} else {
 			out += line + "\n"
 		}
+		linesLeft--
 	}
 	if m.dialog.mode != importDialogNone {
 		out += m.renderDialog()
@@ -2191,12 +2201,16 @@ func (m ignoredModel) view() string {
 	var out string
 	now := time.Now()
 	lastGroup := ""
-	for i := start; i < start+listHeight && i < len(m.entries); i++ {
+	for i, linesLeft := start, listHeight; i < len(m.entries) && linesLeft > 0; i++ {
 		e := m.entries[i]
 		if t, ok := storage.ParseFilenameTime(e.Name); ok {
 			if grp := timeGroup(t, now); grp != lastGroup {
 				out += groupHeader(grp)
 				lastGroup = grp
+				linesLeft--
+				if linesLeft == 0 {
+					break
+				}
 			}
 		}
 		prefix := "  "
@@ -2222,6 +2236,7 @@ func (m ignoredModel) view() string {
 		} else {
 			out += line + "\n"
 		}
+		linesLeft--
 	}
 	if m.dialog.mode != ignoredDialogNone {
 		out += m.renderDialog()
