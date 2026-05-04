@@ -1675,6 +1675,9 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 	case deviceStateMsg:
 		if msg.state == importer.StateSearching {
 			m.status = "Waiting for TP-7…"
+			m.entries = nil
+			m.sel = nil
+			m.cursor = 0
 			m.ps.stop()
 		}
 		return m, m.awaitDeviceState()
