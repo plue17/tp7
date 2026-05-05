@@ -52,7 +52,6 @@ Download the latest binary from the
 [Releases page](https://github.com/plue17/tp7/releases/latest):
 
 ```bash
-# Replace amd64 with arm64 if needed
 curl -L https://github.com/plue17/tp7/releases/latest/download/tp7-linux-amd64 -o tp7
 chmod +x tp7
 mv tp7 ~/.local/bin/
