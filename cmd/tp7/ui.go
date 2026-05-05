@@ -10,9 +10,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"tp7/internal/importer"
-	"tp7/internal/playback"
-	"tp7/internal/storage"
+	"github.com/plue17/tp7/internal/importer"
+	"github.com/plue17/tp7/internal/playback"
+	"github.com/plue17/tp7/internal/storage"
 )
 
 // ── styles ────────────────────────────────────────────────────────────────────

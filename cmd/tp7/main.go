@@ -12,9 +12,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"tp7/internal/config"
-	"tp7/internal/importer"
-	"tp7/internal/storage"
+	"github.com/plue17/tp7/internal/config"
+	"github.com/plue17/tp7/internal/importer"
+	"github.com/plue17/tp7/internal/storage"
 )
 
 func main() {

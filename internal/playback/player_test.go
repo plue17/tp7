@@ -3,7 +3,7 @@ package playback_test
 import (
 	"testing"
 
-	"tp7/internal/playback"
+	"github.com/plue17/tp7/internal/playback"
 )
 
 // TestStop_WhenIdle_placeholder keeps the package non-empty.

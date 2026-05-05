@@ -1,4 +1,4 @@
-module tp7
+module github.com/plue17/tp7
 
 go 1.26.1
 

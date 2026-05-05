@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"tp7/internal/storage"
+	"github.com/plue17/tp7/internal/storage"
 )
 
 // State represents the current state of the Service.

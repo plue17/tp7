@@ -3,7 +3,7 @@ package importer
 import (
 	"testing"
 
-	"tp7/internal/storage"
+	"github.com/plue17/tp7/internal/storage"
 )
 
 func TestFilterMarked_NoLibrary(t *testing.T) {
