@@ -1,4 +1,4 @@
-// Package playback manages audio playback of WAV files using the beep library.
+// Package playback manages audio playback of WAV and MP3 files using the beep library.
 // Only one file plays at a time; starting a new file stops the previous one.
 package playback
 
@@ -6,10 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gopxl/beep/v2"
+	"github.com/gopxl/beep/v2/mp3"
 	"github.com/gopxl/beep/v2/speaker"
 	"github.com/gopxl/beep/v2/wav"
 )
@@ -89,7 +92,14 @@ func (p *Player) Play(path string) (<-chan error, error) {
 		return nil, fmt.Errorf("opening %q: %w", path, err)
 	}
 
-	streamer, format, err := wav.Decode(f)
+	var streamer beep.StreamSeekCloser
+	var format beep.Format
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".mp3":
+		streamer, format, err = mp3.Decode(f)
+	default:
+		streamer, format, err = wav.Decode(f)
+	}
 	if err != nil {
 		_ = f.Close()
 		return nil, fmt.Errorf("decoding %q: %w", path, err)

@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/plue17/tp7/internal/config"
+	"github.com/plue17/tp7/internal/converter"
 	"github.com/plue17/tp7/internal/importer"
 	"github.com/plue17/tp7/internal/storage"
 )
@@ -82,7 +83,7 @@ func main() {
 		DeviceStateCh: deviceStateCh,
 	}
 
-	p := tea.NewProgram(newRootModel(lib, entriesCh, deviceStateCh), tea.WithAltScreen())
+	p := tea.NewProgram(newRootModel(lib, entriesCh, deviceStateCh, converter.IsAvailable()), tea.WithAltScreen())
 
 	// Forward OS signals to the bubbletea program so Ctrl+C / SIGTERM quit cleanly.
 	sig := make(chan os.Signal, 1)

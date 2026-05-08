@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -123,6 +124,8 @@ type Mark struct {
 	DisplayName string `yaml:"display_name,omitempty"`
 	// DurationSecs holds the audio duration in seconds (WAV files only).
 	DurationSecs float64 `yaml:"duration_secs,omitempty"`
+	// MP3Name holds the filename of the converted MP3 (same directory, base name only).
+	MP3Name string `yaml:"mp3_name,omitempty"`
 }
 
 // Library is a collection of topics anchored to a directory on disk.
@@ -235,20 +238,47 @@ func (l *Library) CopyToTopic(topicName, srcPath string) error {
 	return nil
 }
 
+// StoreMP3Name records the converted MP3 filename in the mark file for filename.
+// Errors are silently ignored — this is best-effort metadata.
+func (l *Library) StoreMP3Name(filename, mp3Name string) {
+	m, err := l.ReadMark(filename)
+	if err != nil || m == nil {
+		slog.Debug("storage: StoreMP3Name: could not read mark", "filename", filename, "err", err)
+		return
+	}
+	m.MP3Name = mp3Name
+	if data, err := yaml.Marshal(m); err == nil {
+		if writeErr := os.WriteFile(l.markFilePath(filename), data, 0o644); writeErr != nil {
+			slog.Debug("storage: StoreMP3Name: could not write mark", "filename", filename, "err", writeErr)
+		}
+	} else {
+		slog.Debug("storage: StoreMP3Name: could not marshal mark", "filename", filename, "err", err)
+	}
+}
+
 // storeDuration tries to read the WAV duration for path and write it to the mark file.
 // Errors are silently ignored — duration is best-effort.
 func (l *Library) storeDuration(filename, wavPath string) {
 	dur, err := WavDuration(wavPath)
-	if err != nil || dur <= 0 {
+	if err != nil {
+		slog.Debug("storage: storeDuration: could not read WAV duration", "path", wavPath, "err", err)
+		return
+	}
+	if dur <= 0 {
 		return
 	}
 	m, err := l.ReadMark(filename)
 	if err != nil || m == nil {
+		slog.Debug("storage: storeDuration: could not read mark", "filename", filename, "err", err)
 		return
 	}
 	m.DurationSecs = dur.Seconds()
 	if data, err := yaml.Marshal(m); err == nil {
-		_ = os.WriteFile(l.markFilePath(filename), data, 0o644)
+		if writeErr := os.WriteFile(l.markFilePath(filename), data, 0o644); writeErr != nil {
+			slog.Debug("storage: storeDuration: could not write mark", "filename", filename, "err", writeErr)
+		}
+	} else {
+		slog.Debug("storage: storeDuration: could not marshal mark", "filename", filename, "err", err)
 	}
 }
 
@@ -340,6 +370,7 @@ func (l *Library) ListIgnored() ([]IgnoredEntry, error) {
 		original := strings.TrimSuffix(markName, ".yaml")
 		m, err := l.ReadMark(original)
 		if err != nil {
+			slog.Warn("storage: ListIgnored: could not read mark", "filename", original, "err", err)
 			continue
 		}
 		if m.Action == ActionIgnore {
@@ -375,10 +406,16 @@ func (l *Library) RenameFile(filename, displayName string) error {
 
 // LoadDisplayNames reads marks for the given filenames and returns a map of
 // filename -> DisplayName for entries that have a non-empty display name.
+// For MP3 files the display name is looked up from the corresponding WAV mark.
 func (l *Library) LoadDisplayNames(filenames []string) map[string]string {
 	dn := make(map[string]string)
 	for _, f := range filenames {
-		m, err := l.ReadMark(f)
+		markName := f
+		// For MP3 files look up the WAV mark (same base name, .wav extension).
+		if strings.EqualFold(filepath.Ext(f), ".mp3") {
+			markName = f[:len(f)-len(filepath.Ext(f))] + ".wav"
+		}
+		m, err := l.ReadMark(markName)
 		if err == nil && m != nil && m.DisplayName != "" {
 			dn[f] = m.DisplayName
 		}
@@ -389,10 +426,16 @@ func (l *Library) LoadDisplayNames(filenames []string) map[string]string {
 // LoadDurations returns a map of filename -> audio duration for the given topic files.
 // If a mark does not yet contain a duration, it attempts to read it from the WAV file
 // on disk and updates the mark in place (best-effort).
+// For MP3 files the duration is looked up from the corresponding WAV mark (same base name).
 func (l *Library) LoadDurations(topicName string, filenames []string) map[string]time.Duration {
 	result := make(map[string]time.Duration)
 	for _, f := range filenames {
-		m, err := l.ReadMark(f)
+		markName := f
+		// For MP3 files look up the WAV mark (same base name, .wav extension).
+		if strings.EqualFold(filepath.Ext(f), ".mp3") {
+			markName = f[:len(f)-len(filepath.Ext(f))] + ".wav"
+		}
+		m, err := l.ReadMark(markName)
 		if err != nil || m == nil {
 			continue
 		}
@@ -401,7 +444,7 @@ func (l *Library) LoadDurations(topicName string, filenames []string) map[string
 			continue
 		}
 		// Not yet stored — read from the WAV file and persist.
-		wavPath := filepath.Join(l.Path, topicName, f)
+		wavPath := filepath.Join(l.Path, topicName, markName)
 		dur, err := WavDuration(wavPath)
 		if err != nil || dur <= 0 {
 			continue
@@ -409,7 +452,7 @@ func (l *Library) LoadDurations(topicName string, filenames []string) map[string
 		result[f] = dur
 		m.DurationSecs = dur.Seconds()
 		if data, err := yaml.Marshal(m); err == nil {
-			_ = os.WriteFile(l.markFilePath(f), data, 0o644)
+			_ = os.WriteFile(l.markFilePath(markName), data, 0o644)
 		}
 	}
 	return result

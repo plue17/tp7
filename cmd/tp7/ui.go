@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/plue17/tp7/internal/converter"
 	"github.com/plue17/tp7/internal/importer"
 	"github.com/plue17/tp7/internal/playback"
 	"github.com/plue17/tp7/internal/storage"
@@ -124,6 +126,8 @@ type batchIgnoredDoneMsg struct {
 	removed   []storage.IgnoredEntry // entries removed from 3
 	errMsg    string
 }
+
+type convScanDoneMsg struct{ count int }
 
 // ── rename dialog ─────────────────────────────────────────────────────────────
 
@@ -322,6 +326,15 @@ func ignoreEntryCmd(lib *storage.Library, entry importer.Entry) tea.Cmd {
 func copyEntryCmd(lib *storage.Library, entry importer.Entry, topicName string) tea.Cmd {
 	return func() tea.Msg {
 		err := lib.CopyToTopic(topicName, entry.Path)
+		if err == nil && converter.IsAvailable() {
+			destPath := lib.FilePath(topicName, entry.Name)
+			if convErr := converter.ConvertWAVToMP3(destPath); convErr != nil {
+				slog.Warn("converter: conversion failed", "path", destPath, "err", convErr)
+			} else {
+				mp3Name := entry.Name[:len(entry.Name)-len(filepath.Ext(entry.Name))] + ".mp3"
+				lib.StoreMP3Name(entry.Name, mp3Name)
+			}
+		}
 		return importActionDoneMsg{entryName: entry.Name, topicName: topicName, err: err}
 	}
 }
@@ -406,6 +419,16 @@ func copyFromIgnoredCmd(lib *storage.Library, filename, sourcePath, topicName st
 			}
 		}
 		err := lib.CopyToTopic(topicName, sourcePath)
+		if err == nil && converter.IsAvailable() {
+			destPath := lib.FilePath(topicName, filepath.Base(sourcePath))
+			if convErr := converter.ConvertWAVToMP3(destPath); convErr != nil {
+				slog.Warn("converter: conversion failed", "path", destPath, "err", convErr)
+			} else {
+				wavBase := filepath.Base(sourcePath)
+				mp3Name := wavBase[:len(wavBase)-len(filepath.Ext(wavBase))] + ".mp3"
+				lib.StoreMP3Name(filename, mp3Name)
+			}
+		}
 		return ignoredFileDoneMsg{filename: filename, topicName: topicName, err: err}
 	}
 }
@@ -579,9 +602,28 @@ func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
 		if err != nil {
 			return loadFilesMsg{topicName: topicName, err: err}
 		}
-		dn := lib.LoadDisplayNames(files)
-		durs := lib.LoadDurations(topicName, files)
-		return loadFilesMsg{topicName: topicName, files: files, displayNames: dn, durations: durs}
+		// Build a set of base names that have an MP3 variant so that the
+		// corresponding WAV file can be hidden (show only the MP3).
+		mp3Bases := make(map[string]struct{})
+		for _, f := range files {
+			if strings.EqualFold(filepath.Ext(f), ".mp3") {
+				base := f[:len(f)-len(filepath.Ext(f))]
+				mp3Bases[strings.ToLower(base)] = struct{}{}
+			}
+		}
+		filtered := files[:0:0]
+		for _, f := range files {
+			if strings.EqualFold(filepath.Ext(f), ".wav") {
+				base := f[:len(f)-len(filepath.Ext(f))]
+				if _, hasMp3 := mp3Bases[strings.ToLower(base)]; hasMp3 {
+					continue // skip WAV — MP3 variant will be shown instead
+				}
+			}
+			filtered = append(filtered, f)
+		}
+		dn := lib.LoadDisplayNames(filtered)
+		durs := lib.LoadDurations(topicName, filtered)
+		return loadFilesMsg{topicName: topicName, files: filtered, displayNames: dn, durations: durs}
 	}
 }
 
@@ -621,6 +663,15 @@ func batchCopyCmd(lib *storage.Library, entries []importer.Entry, topicName stri
 				errs = append(errs, fmt.Sprintf("%s: %v", e.Name, err))
 			} else {
 				removed = append(removed, e.Name)
+				if converter.IsAvailable() {
+					destPath := lib.FilePath(topicName, e.Name)
+					if convErr := converter.ConvertWAVToMP3(destPath); convErr != nil {
+						slog.Warn("converter: batch conversion failed", "path", destPath, "err", convErr)
+					} else {
+						mp3Name := e.Name[:len(e.Name)-len(filepath.Ext(e.Name))] + ".mp3"
+						lib.StoreMP3Name(e.Name, mp3Name)
+					}
+				}
 			}
 		}
 		return batchImportDoneMsg{topicName: topicName, removed: removed, errMsg: strings.Join(errs, "\n")}
@@ -655,6 +706,16 @@ func batchCopyFromIgnoredCmd(lib *storage.Library, entries []storage.IgnoredEntr
 				errs = append(errs, fmt.Sprintf("%s: %v", e.Name, err))
 			} else {
 				removed = append(removed, e)
+				if converter.IsAvailable() {
+					destPath := lib.FilePath(topicName, filepath.Base(e.SourcePath))
+					if convErr := converter.ConvertWAVToMP3(destPath); convErr != nil {
+						slog.Warn("converter: batch conversion failed", "path", destPath, "err", convErr)
+					} else {
+						wavBase := filepath.Base(e.SourcePath)
+						mp3Name := wavBase[:len(wavBase)-len(filepath.Ext(wavBase))] + ".mp3"
+						lib.StoreMP3Name(e.Name, mp3Name)
+					}
+				}
 			}
 		}
 		return batchIgnoredDoneMsg{topicName: topicName, removed: removed, errMsg: strings.Join(errs, "\n")}
@@ -1071,6 +1132,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 
 	case loadTopicsMsg:
 		if msg.err != nil {
+			slog.Warn("tab1: loadTopics error", "err", msg.err)
 			m.status = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
 		}
@@ -1107,6 +1169,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 
 	case loadFilesMsg:
 		if msg.err != nil {
+			slog.Warn("tab1: loadFiles error", "topic", msg.topicName, "err", msg.err)
 			m.status = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
 		}
@@ -1146,6 +1209,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 
 	case libFileDoneMsg:
 		if msg.err != nil {
+			slog.Warn("tab1: libFile action error", "topic", msg.topicName, "file", msg.fileName, "err", msg.err)
 			m.confirm.errMsg = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
 		}
@@ -1154,6 +1218,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 
 	case createTopicMsg:
 		if msg.err != nil {
+			slog.Warn("tab1: createTopic error", "name", msg.name, "err", msg.err)
 			m.dialog.errMsg = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
 		}
@@ -1162,6 +1227,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 
 	case libMoveTopicsLoadedMsg:
 		if msg.err != nil {
+			slog.Warn("tab1: loadMoveTopics error", "err", msg.err)
 			m.status = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
 		}
@@ -1178,6 +1244,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 
 	case moveFileDoneMsg:
 		if msg.err != nil {
+			slog.Warn("tab1: moveFile error", "src", msg.srcTopic, "dst", msg.dstTopic, "file", msg.fileName, "err", msg.err)
 			m.move.errMsg = fmt.Sprintf("Error: %v", msg.err)
 			m.move.active = true // re-show dialog with error
 			return m, nil
@@ -1189,6 +1256,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 
 	case renameDoneMsg:
 		if msg.err != nil {
+			slog.Warn("tab1: renameFile error", "filename", msg.filename, "err", msg.err)
 			m.rename.errMsg = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
 		}
@@ -1212,6 +1280,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 
 	case renameTopicDoneMsg:
 		if msg.err != nil {
+			slog.Warn("tab1: renameTopic error", "old", msg.oldName, "new", msg.newName, "err", msg.err)
 			m.topicRename.errMsg = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
 		}
@@ -1227,6 +1296,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 
 	case deleteTopicDoneMsg:
 		if msg.err != nil {
+			slog.Warn("tab1: deleteTopic error", "topic", msg.topicName, "err", msg.err)
 			m.confirm.errMsg = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
 		}
@@ -1252,6 +1322,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 	case playbackDoneMsg:
 		m.ps.onDone(msg.path)
 		if msg.err != nil && msg.err != playback.ErrStopped {
+			slog.Warn("tab1: playback error", "path", msg.path, "err", msg.err)
 			m.status = fmt.Sprintf("Playback error: %v", msg.err)
 		}
 
@@ -1656,6 +1727,7 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 	case playbackDoneMsg:
 		m.ps.onDone(msg.path)
 		if msg.err != nil && msg.err != playback.ErrStopped {
+			slog.Warn("tab2: playback error", "path", msg.path, "err", msg.err)
 			m.status = fmt.Sprintf("Playback error: %v", msg.err)
 		}
 
@@ -1684,6 +1756,7 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 
 	case importTopicsLoadedMsg:
 		if msg.err != nil {
+			slog.Warn("tab2: loadImportTopics error", "err", msg.err)
 			m.dialog = importDialog{}
 			m.status = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
@@ -1701,6 +1774,7 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 
 	case importActionDoneMsg:
 		if msg.err != nil {
+			slog.Warn("tab2: importAction error", "entry", msg.entryName, "topic", msg.topicName, "err", msg.err)
 			if m.copying {
 				m.copying = false
 				m.status = fmt.Sprintf("Error: %v", msg.err)
@@ -1727,6 +1801,9 @@ func (m importModel) update(msg tea.Msg) (importModel, tea.Cmd) {
 		m.status = fmt.Sprintf("%d new recording(s)", len(m.entries))
 
 	case batchImportDoneMsg:
+		if msg.errMsg != "" {
+			slog.Warn("tab2: batchImport partial/full error", "topic", msg.topicName, "removed", len(msg.removed), "err", msg.errMsg)
+		}
 		if msg.errMsg != "" && len(msg.removed) == 0 {
 			if m.copying {
 				m.copying = false
@@ -2206,11 +2283,13 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 	case playbackDoneMsg:
 		m.ps.onDone(msg.path)
 		if msg.err != nil && msg.err != playback.ErrStopped {
+			slog.Warn("tab3: playback error", "path", msg.path, "err", msg.err)
 			m.status = fmt.Sprintf("Playback error: %v", msg.err)
 		}
 
 	case loadIgnoredMsg:
 		if msg.err != nil {
+			slog.Warn("tab3: loadIgnored error", "err", msg.err)
 			m.status = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
 		}
@@ -2233,6 +2312,7 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 
 	case ignoredTopicsLoadedMsg:
 		if msg.err != nil {
+			slog.Warn("tab3: loadIgnoredTopics error", "err", msg.err)
 			m.dialog = ignoredDialog{}
 			m.status = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
@@ -2252,6 +2332,7 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 
 	case ignoredFileDoneMsg:
 		if msg.err != nil {
+			slog.Warn("tab3: ignoredFile action error", "filename", msg.filename, "topic", msg.topicName, "err", msg.err)
 			if m.copying {
 				m.copying = false
 				m.status = fmt.Sprintf("Error: %v", msg.err)
@@ -2279,6 +2360,9 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 		}
 
 	case batchIgnoredDoneMsg:
+		if msg.errMsg != "" {
+			slog.Warn("tab3: batchIgnored partial/full error", "topic", msg.topicName, "removed", len(msg.removed), "err", msg.errMsg)
+		}
 		if msg.errMsg != "" && len(msg.removed) == 0 {
 			if m.copying {
 				m.copying = false
@@ -2315,6 +2399,7 @@ func (m ignoredModel) update(msg tea.Msg) (ignoredModel, tea.Cmd) {
 
 	case renameDoneMsg:
 		if msg.err != nil {
+			slog.Warn("tab3: renameFile error", "filename", msg.filename, "err", msg.err)
 			m.rename.errMsg = fmt.Sprintf("Error: %v", msg.err)
 			return m, nil
 		}
@@ -2469,26 +2554,69 @@ func (m ignoredModel) renderRenameDialog() string {
 // ── root model ────────────────────────────────────────────────────────────────
 
 type rootModel struct {
-	active   tab
-	library  libraryModel
-	imports  importModel
-	ignored  ignoredModel
-	height   int
-	width    int
-	showHelp bool
+	active      tab
+	library     libraryModel
+	imports     importModel
+	ignored     ignoredModel
+	height      int
+	width       int
+	showHelp    bool
+	ffmpegAvail bool
 }
 
-func newRootModel(lib *storage.Library, ch <-chan []importer.Entry, stateCh <-chan importer.State) rootModel {
+func newRootModel(lib *storage.Library, ch <-chan []importer.Entry, stateCh <-chan importer.State, ffmpegAvail bool) rootModel {
 	return rootModel{
-		active:  tabLibrary,
-		library: newLibraryModel(lib),
-		imports: newImportModel(lib, ch, stateCh),
-		ignored: newIgnoredModel(lib),
+		active:      tabLibrary,
+		library:     newLibraryModel(lib),
+		imports:     newImportModel(lib, ch, stateCh),
+		ignored:     newIgnoredModel(lib),
+		ffmpegAvail: ffmpegAvail,
 	}
 }
 
 func (m rootModel) Init() tea.Cmd {
-	return tea.Batch(m.library.Init(), m.imports.Init(), m.ignored.Init())
+	cmds := []tea.Cmd{m.library.Init(), m.imports.Init(), m.ignored.Init()}
+	if m.ffmpegAvail && m.library.lib != nil {
+		cmds = append(cmds, scanConvertCmd(m.library.lib))
+	}
+	return tea.Batch(cmds...)
+}
+
+// scanConvertCmd walks all topics in lib and converts any WAV files that do
+// not yet have a corresponding MP3. Runs in the background via tea.Cmd.
+func scanConvertCmd(lib *storage.Library) tea.Cmd {
+	return func() tea.Msg {
+		topics, err := lib.Topics()
+		if err != nil {
+			slog.Warn("converter: scan: could not list topics", "err", err)
+			return convScanDoneMsg{}
+		}
+		var count int
+		for _, t := range topics {
+			files, err := lib.TopicFiles(t.Name)
+			if err != nil {
+				continue
+			}
+			for _, f := range files {
+				if !strings.EqualFold(filepath.Ext(f), ".wav") {
+					continue
+				}
+				wavPath := lib.FilePath(t.Name, f)
+				mp3Path := wavPath[:len(wavPath)-len(filepath.Ext(wavPath))] + ".mp3"
+				if _, statErr := os.Stat(mp3Path); statErr == nil {
+					continue // MP3 already exists
+				}
+				if convErr := converter.ConvertWAVToMP3(wavPath); convErr != nil {
+					slog.Warn("converter: scan conversion failed", "path", wavPath, "err", convErr)
+					continue
+				}
+				mp3Name := f[:len(f)-len(filepath.Ext(f))] + ".mp3"
+				lib.StoreMP3Name(f, mp3Name)
+				count++
+			}
+		}
+		return convScanDoneMsg{count: count}
+	}
 }
 
 func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -2589,6 +2717,11 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		return m, nil
+	case convScanDoneMsg:
+		if msg.count > 0 {
+			m.library.status = fmt.Sprintf("Converted %d WAV file(s) to MP3", msg.count)
+		}
+		return m, nil
 	}
 	// data messages (async loads, entries) reach all sub-models
 	lib, c1 := m.library.update(msg)
@@ -2647,7 +2780,11 @@ func (m rootModel) View() string {
 		content = m.ignored.view()
 	}
 
-	footer := m.playbackLine() + "\n" + styleDim.Render("h for help  •  q quit")
+	helpLine := "h for help  •  q quit"
+	if !m.ffmpegAvail {
+		helpLine += "  •  mp3 conversion disabled - ffmpeg not installed"
+	}
+	footer := m.playbackLine() + "\n" + styleDim.Render(helpLine)
 
 	contentHeight := m.height - headerHeight - footerHeight
 	if contentHeight < 1 {

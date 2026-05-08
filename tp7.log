@@ -99,3 +99,43 @@ time=2026-05-04T21:21:58.138+02:00 level=DEBUG msg="tab1 align" file=2026-05-01_
 time=2026-05-04T21:21:58.138+02:00 level=DEBUG msg="tab1 align" file=2026-05-03_134353_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
 time=2026-05-04T21:21:58.138+02:00 level=DEBUG msg="tab1 align" file=2026-05-02_100926_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
 time=2026-05-04T21:21:58.138+02:00 level=DEBUG msg="tab1 align" file=2026-05-01_123257_000.wav m.width=109 prefix_len=6 availWidth=98 label_len=98 line_len=104
+time=2026-05-08T19:22:30.399+02:00 level=WARN msg="tab1: playback error" path=/home/patrick/tp7/Music/2026-05-05_230950_000.mp3 err="decoding \"/home/patrick/tp7/Music/2026-05-05_230950_000.mp3\": wav: missing RIFF at the beginning > ID3\x04"
+time=2026-05-08T19:44:58.146+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-08T19:44:58.331+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-08T19:44:58.446+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-08T19:44:59.045+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-08T19:44:59.254+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-08T19:44:59.711+02:00 level=DEBUG msg=playerState.stop was=""
+time=2026-05-08T19:44:59.959+02:00 level=DEBUG msg="tab1 space: toggle" path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:44:59.959+02:00 level=DEBUG msg="playerState.toggle: starting" path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3 prev=""
+time=2026-05-08T19:44:59.959+02:00 level=DEBUG msg="playCmd: starting" path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:00.059+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:00.059+02:00 level=DEBUG msg=playerState.onTick pos=50ms dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:00.160+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:00.160+02:00 level=DEBUG msg=playerState.onTick pos=150ms dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:00.261+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:00.261+02:00 level=DEBUG msg=playerState.onTick pos=200ms dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:00.361+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:00.361+02:00 level=DEBUG msg=playerState.onTick pos=350ms dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:00.462+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:00.462+02:00 level=DEBUG msg=playerState.onTick pos=450ms dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:00.564+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:00.564+02:00 level=DEBUG msg=playerState.onTick pos=550ms dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:00.664+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:00.664+02:00 level=DEBUG msg=playerState.onTick pos=650ms dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:00.765+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:00.765+02:00 level=DEBUG msg=playerState.onTick pos=750ms dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:00.866+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:00.866+02:00 level=DEBUG msg=playerState.onTick pos=850ms dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:00.967+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:00.967+02:00 level=DEBUG msg=playerState.onTick pos=900ms dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:01.067+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:01.067+02:00 level=DEBUG msg=playerState.onTick pos=1.05s dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:01.107+02:00 level=DEBUG msg="tab1 space: toggle" path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:01.107+02:00 level=DEBUG msg="playerState.toggle: pausing" path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:01.168+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:01.169+02:00 level=DEBUG msg=playerState.onTick pos=1.05s dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:01.270+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:01.270+02:00 level=DEBUG msg=playerState.onTick pos=1.05s dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-08T19:45:01.371+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-08T19:45:01.371+02:00 level=DEBUG msg=playerState.onTick pos=1.05s dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
