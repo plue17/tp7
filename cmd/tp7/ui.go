@@ -333,6 +333,9 @@ func copyEntryCmd(lib *storage.Library, entry importer.Entry, topicName string) 
 			} else {
 				mp3Name := entry.Name[:len(entry.Name)-len(filepath.Ext(entry.Name))] + ".mp3"
 				lib.StoreMP3Name(entry.Name, mp3Name)
+				if rmErr := os.Remove(destPath); rmErr != nil {
+					slog.Warn("converter: removing WAV failed", "path", destPath, "err", rmErr)
+				}
 			}
 		}
 		return importActionDoneMsg{entryName: entry.Name, topicName: topicName, err: err}
@@ -427,6 +430,9 @@ func copyFromIgnoredCmd(lib *storage.Library, filename, sourcePath, topicName st
 				wavBase := filepath.Base(sourcePath)
 				mp3Name := wavBase[:len(wavBase)-len(filepath.Ext(wavBase))] + ".mp3"
 				lib.StoreMP3Name(filename, mp3Name)
+				if rmErr := os.Remove(destPath); rmErr != nil {
+					slog.Warn("converter: removing WAV failed", "path", destPath, "err", rmErr)
+				}
 			}
 		}
 		return ignoredFileDoneMsg{filename: filename, topicName: topicName, err: err}
@@ -670,6 +676,9 @@ func batchCopyCmd(lib *storage.Library, entries []importer.Entry, topicName stri
 					} else {
 						mp3Name := e.Name[:len(e.Name)-len(filepath.Ext(e.Name))] + ".mp3"
 						lib.StoreMP3Name(e.Name, mp3Name)
+						if rmErr := os.Remove(destPath); rmErr != nil {
+							slog.Warn("converter: removing WAV failed", "path", destPath, "err", rmErr)
+						}
 					}
 				}
 			}
@@ -714,6 +723,9 @@ func batchCopyFromIgnoredCmd(lib *storage.Library, entries []storage.IgnoredEntr
 						wavBase := filepath.Base(e.SourcePath)
 						mp3Name := wavBase[:len(wavBase)-len(filepath.Ext(wavBase))] + ".mp3"
 						lib.StoreMP3Name(e.Name, mp3Name)
+						if rmErr := os.Remove(destPath); rmErr != nil {
+							slog.Warn("converter: removing WAV failed", "path", destPath, "err", rmErr)
+						}
 					}
 				}
 			}
@@ -2604,7 +2616,11 @@ func scanConvertCmd(lib *storage.Library) tea.Cmd {
 				wavPath := lib.FilePath(t.Name, f)
 				mp3Path := wavPath[:len(wavPath)-len(filepath.Ext(wavPath))] + ".mp3"
 				if _, statErr := os.Stat(mp3Path); statErr == nil {
-					continue // MP3 already exists
+					// MP3 already exists — just remove the WAV if still present.
+					if rmErr := os.Remove(wavPath); rmErr != nil && !os.IsNotExist(rmErr) {
+						slog.Warn("converter: removing WAV failed", "path", wavPath, "err", rmErr)
+					}
+					continue
 				}
 				if convErr := converter.ConvertWAVToMP3(wavPath); convErr != nil {
 					slog.Warn("converter: scan conversion failed", "path", wavPath, "err", convErr)
@@ -2612,6 +2628,9 @@ func scanConvertCmd(lib *storage.Library) tea.Cmd {
 				}
 				mp3Name := f[:len(f)-len(filepath.Ext(f))] + ".mp3"
 				lib.StoreMP3Name(f, mp3Name)
+				if rmErr := os.Remove(wavPath); rmErr != nil {
+					slog.Warn("converter: removing WAV failed", "path", wavPath, "err", rmErr)
+				}
 				count++
 			}
 		}
