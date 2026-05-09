@@ -157,6 +157,12 @@ type transcriptWrittenMsg struct {
 	err       error
 }
 
+type transcribeQueueItem struct {
+	topicName string
+	filename  string
+	filePath  string
+}
+
 // ── rename dialog ─────────────────────────────────────────────────────────────
 
 type renameDialog struct {
@@ -972,6 +978,18 @@ func transcriptWriteCmd(lib *storage.Library, topicName, filename, text string) 
 	}
 }
 
+// transcribeNextCmd pops the first item from the queue and starts its upload.
+// It returns nil when the queue is empty or no transcriber is configured.
+func transcribeNextCmd(m *libraryModel) tea.Cmd {
+	if m.transcriber == nil || len(m.transcribeQueue) == 0 {
+		return nil
+	}
+	item := m.transcribeQueue[0]
+	m.transcribeQueue = m.transcribeQueue[1:]
+	m.pendingJobs[item.filename] = "" // mark as in-flight before cmd returns
+	return transcribeUploadCmd(m.transcriber, item.topicName, item.filename, item.filePath)
+}
+
 // ── library model (1) ────────────────────────────────────────────────────────
 
 type topicNode struct {
@@ -1008,6 +1026,7 @@ type libraryModel struct {
 	pendingJobs      map[string]string // filename -> jobID
 	failedJobs       map[string]bool   // filename -> true
 	activeTranscript *transcript.Transcript
+	transcribeQueue  []transcribeQueueItem // files waiting for auto-transcription
 }
 
 func newLibraryModel(lib *storage.Library, tc *transcriber.Client) libraryModel {
@@ -1187,18 +1206,6 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 			row := rows[m.cursor]
 			return m, loadMoveTopicsCmd(m.lib, m.topics[row.topicIdx].name, m.topics[row.topicIdx].files[row.fileIdx])
 		}
-	case "t":
-		if m.transcriber != nil && m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
-			row := rows[m.cursor]
-			filename := m.topics[row.topicIdx].files[row.fileIdx]
-			topicName := m.topics[row.topicIdx].name
-			// Don't start a second job while one is already running.
-			if _, pending := m.pendingJobs[filename]; !pending {
-				delete(m.failedJobs, filename)
-				filePath := m.lib.FilePath(topicName, filename)
-				return m, transcribeUploadCmd(m.transcriber, topicName, filename, filePath)
-			}
-		}
 	case "i":
 		if m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
 			row := rows[m.cursor]
@@ -1367,6 +1374,35 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 				break
 			}
 		}
+		// Enqueue files that have no transcript yet and are not already in flight.
+		if m.transcriber != nil {
+			for _, f := range msg.files {
+				if msg.transcripts[f] {
+					continue // already transcribed
+				}
+				if _, pending := m.pendingJobs[f]; pending {
+					continue // already in flight
+				}
+				alreadyQueued := false
+				for _, qi := range m.transcribeQueue {
+					if qi.filename == f {
+						alreadyQueued = true
+						break
+					}
+				}
+				if !alreadyQueued {
+					m.transcribeQueue = append(m.transcribeQueue, transcribeQueueItem{
+						topicName: msg.topicName,
+						filename:  f,
+						filePath:  m.lib.FilePath(msg.topicName, f),
+					})
+				}
+			}
+			// Start processing if nothing is currently in flight.
+			if len(m.pendingJobs) == 0 {
+				return m, transcribeNextCmd(&m)
+			}
+		}
 
 	case importActionDoneMsg:
 		if msg.topicName == "" {
@@ -1519,7 +1555,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			slog.Warn("tab1: transcribeUpload error", "filename", msg.filename, "err", msg.err)
 			m.failedJobs[msg.filename] = true
 			delete(m.pendingJobs, msg.filename)
-			return m, nil
+			return m, transcribeNextCmd(&m)
 		}
 		m.pendingJobs[msg.filename] = msg.jobID
 		return m, transcribePollCmd(m.transcriber, msg.topicName, msg.filename, msg.filePath, msg.jobID)
@@ -1529,7 +1565,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			slog.Warn("tab1: transcribePoll error", "filename", msg.filename, "err", msg.err)
 			m.failedJobs[msg.filename] = true
 			delete(m.pendingJobs, msg.filename)
-			return m, nil
+			return m, transcribeNextCmd(&m)
 		}
 		if !msg.done {
 			return m, transcribePollCmd(m.transcriber, msg.topicName, msg.filename, msg.filePath, msg.jobID)
@@ -1541,7 +1577,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		if msg.err != nil {
 			slog.Warn("tab1: transcriptWrite error", "filename", msg.filename, "err", msg.err)
 			m.failedJobs[msg.filename] = true
-			return m, nil
+			return m, transcribeNextCmd(&m)
 		}
 		for i := range m.topics {
 			if m.topics[i].name == msg.topicName {
@@ -1552,6 +1588,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 				break
 			}
 		}
+		return m, transcribeNextCmd(&m)
 
 	case tea.KeyMsg:
 		if m.dialog.active {
@@ -3142,7 +3179,6 @@ func (m rootModel) helpLines() []string {
 			"  r             change description",
 			"  n             new topic",
 			"  R             rename topic",
-			"  t             start transcription",
 		}
 	case tabImport:
 		specific = []string{
