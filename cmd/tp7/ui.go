@@ -629,6 +629,45 @@ func loadTranscriptForFile(lib *storage.Library, topicName, filename string) *tr
 	return tr
 }
 
+// wrapWords wraps plain text to at most maxCols runes per line and returns at
+// most maxLines lines joined by newlines. If text is empty, it returns a
+// string of maxLines empty lines (to hold layout space).
+func wrapWords(text string, maxCols, maxLines int) string {
+	if maxCols < 1 {
+		maxCols = 1
+	}
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return strings.Repeat("\n", maxLines-1)
+	}
+	var lines []string
+	current := ""
+	for _, w := range words {
+		if len(lines) >= maxLines {
+			break
+		}
+		if current == "" {
+			current = w
+		} else if len(current)+1+len(w) <= maxCols {
+			current += " " + w
+		} else {
+			lines = append(lines, current)
+			if len(lines) >= maxLines {
+				break
+			}
+			current = w
+		}
+	}
+	if current != "" && len(lines) < maxLines {
+		lines = append(lines, current)
+	}
+	// Pad to maxLines so layout stays stable.
+	for len(lines) < maxLines {
+		lines = append(lines, "")
+	}
+	return strings.Join(lines, "\n")
+}
+
 func loadTopicsCmd(lib *storage.Library) tea.Cmd {
 	return func() tea.Msg {
 		topics, err := lib.Topics()
@@ -2947,7 +2986,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 const (
 	headerHeight    = 2 // tabBar + blank line
 	footerHeight    = 2 // playback line + h-for-help line
-	footerHeightLib = 3 // footerHeight + transcript line
+	footerHeightLib = 5 // footerHeight + 3 transcript lines
 )
 
 func (m rootModel) View() string {
@@ -2996,20 +3035,23 @@ func (m rootModel) View() string {
 		helpLine += "  •  mp3 conversion disabled - ffmpeg not installed"
 	}
 
-	// Transcript line: only shown in tab 1 when a parseable transcript is loaded.
-	transcriptLine := ""
-	if m.active == tabLibrary && m.library.activeTranscript != nil {
-		seg := m.library.activeTranscript.At(m.library.ps.playPos)
-		if seg != nil {
-			transcriptLine = styleDim.Render(seg.Text)
-		} else {
-			transcriptLine = styleDim.Render("…")
+	// Transcript block: 3 fixed lines in Tab 1 with word-wrap.
+	var transcriptBlock string
+	if m.active == tabLibrary {
+		transcriptText := ""
+		if m.library.activeTranscript != nil {
+			seg := m.library.activeTranscript.At(m.library.ps.playPos)
+			if seg != nil {
+				transcriptText = seg.Text
+			}
 		}
+		wrapped := wrapWords(transcriptText, m.width, 3)
+		transcriptBlock = styleDim.Render(wrapped)
 	}
 
 	var footer string
-	if transcriptLine != "" {
-		footer = transcriptLine + "\n" + m.playbackLine() + "\n" + styleDim.Render(helpLine)
+	if transcriptBlock != "" {
+		footer = transcriptBlock + "\n" + m.playbackLine() + "\n" + styleDim.Render(helpLine)
 	} else {
 		footer = m.playbackLine() + "\n" + styleDim.Render(helpLine)
 	}
