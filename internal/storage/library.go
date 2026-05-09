@@ -15,6 +15,7 @@ import (
 )
 
 const markedDir = ".marked"
+const tagsFile = ".tags.yaml"
 
 // ParseFilenameTime extracts the recording timestamp from a filename of the
 // form YYYY-MM-DD_HHMMSS_NNN.ext. Returns the zero Time and false on failure.
@@ -579,4 +580,42 @@ func (l *Library) WriteTranscript(topicName, filename, text string) error {
 	base := filename[:len(filename)-len(filepath.Ext(filename))]
 	txtPath := filepath.Join(l.Path, topicName, base+".txt")
 	return os.WriteFile(txtPath, []byte(text), 0o644)
+}
+
+// tagsFilePath returns the path to the central tags file for the library.
+func (l *Library) tagsFilePath() string {
+	return filepath.Join(l.Path, tagsFile)
+}
+
+// GetGlobalTags reads the library-wide list of tag keywords.
+// Returns nil when no tags have been defined yet.
+func (l *Library) GetGlobalTags() ([]string, error) {
+	data, err := os.ReadFile(l.tagsFilePath())
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("reading tags: %w", err)
+	}
+	var tags []string
+	if err := yaml.Unmarshal(data, &tags); err != nil {
+		return nil, fmt.Errorf("parsing tags: %w", err)
+	}
+	return tags, nil
+}
+
+// SetGlobalTags writes the library-wide list of tag keywords.
+// An empty or nil slice removes the tags file entirely.
+func (l *Library) SetGlobalTags(tags []string) error {
+	if len(tags) == 0 {
+		if err := os.Remove(l.tagsFilePath()); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("removing tags file: %w", err)
+		}
+		return nil
+	}
+	data, err := yaml.Marshal(tags)
+	if err != nil {
+		return fmt.Errorf("marshalling tags: %w", err)
+	}
+	return os.WriteFile(l.tagsFilePath(), data, 0o644)
 }

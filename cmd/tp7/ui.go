@@ -33,6 +33,7 @@ var (
 	styleDialogErr = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
 	styleMultiSel  = lipgloss.NewStyle().Bold(true)
 	stylePlayIcon  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")) // bright green
+	styleTag       = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))            // cyan
 )
 
 // ── tabs ──────────────────────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ type loadFilesMsg struct {
 	displayNames map[string]string
 	durations    map[string]time.Duration
 	transcripts  map[string]bool
+	tags         map[string][]string
 	err          error
 }
 
@@ -177,6 +179,52 @@ type renameDoneMsg struct {
 	filename    string
 	displayName string
 	err         error
+}
+
+// ── tag dialog ────────────────────────────────────────────────────────────────
+
+// tagDialogMode tracks which sub-screen the global tag dialog is showing.
+type tagDialogMode int
+
+const (
+	tagDialogView tagDialogMode = iota // list of global tag keywords
+	tagDialogAdd                       // text input for new keyword
+)
+
+// tagDialog manages the library-wide tag keyword list.
+// Tags are global: a voice memo is labelled with a tag when that keyword
+// appears anywhere in its transcript.
+type tagDialog struct {
+	active bool
+	tags   []string // working copy of the global keyword list
+	cursor int
+	mode   tagDialogMode
+	input  string
+	errMsg string
+}
+
+type globalTagsLoadedMsg struct {
+	tags []string
+	err  error
+}
+
+type setGlobalTagsDoneMsg struct {
+	tags []string
+	err  error
+}
+
+func loadGlobalTagsCmd(lib *storage.Library) tea.Cmd {
+	return func() tea.Msg {
+		tags, err := lib.GetGlobalTags()
+		return globalTagsLoadedMsg{tags: tags, err: err}
+	}
+}
+
+func setGlobalTagsCmd(lib *storage.Library, tags []string) tea.Cmd {
+	return func() tea.Msg {
+		err := lib.SetGlobalTags(tags)
+		return setGlobalTagsDoneMsg{tags: tags, err: err}
+	}
 }
 
 type importDisplayNamesMsg struct {
@@ -319,6 +367,90 @@ func formatLabelAlignedStyled(filename, displayName string, availWidth int, suff
 // then falls back to the timestamp parsed from the filename, then the raw filename.
 func preferredName(filename string, displayNames map[string]string) string {
 	return formatLabel(filename, displayNames[filename])
+}
+
+// formatLabelWithTags is like formatLabelAligned but inserts raw tag text
+// (e.g. " [foo] [bar]") between the name and the right-aligned portion.
+func formatLabelWithTags(filename, displayName string, tags []string, availWidth int, suffix string) string {
+	ts := storage.DefaultDisplayName(filename)
+	rawTags := ""
+	for _, t := range tags {
+		rawTags += " [" + t + "]"
+	}
+	if availWidth <= 0 || ts == "" {
+		label := formatLabel(filename, displayName)
+		if suffix != "" {
+			return label + rawTags + "  " + suffix
+		}
+		return label + rawTags
+	}
+	right := ts
+	if suffix != "" {
+		right = ts + "  " + suffix
+	}
+	isUserName := displayName != "" && displayName != ts
+	name := displayName
+	if !isUserName {
+		name = "no description"
+	}
+	gap := availWidth - lipgloss.Width(name) - lipgloss.Width(rawTags) - lipgloss.Width(right)
+	if gap < 1 {
+		available := availWidth - lipgloss.Width(rawTags) - lipgloss.Width(right) - 1
+		if available < 0 {
+			available = 0
+		}
+		name = string([]rune(name)[:max(0, available)])
+		gap = 1
+	}
+	return name + rawTags + strings.Repeat(" ", gap) + right
+}
+
+// formatLabelWithTagsStyled is like formatLabelAlignedStyled but renders tags
+// in cyan between the (white) name and the (dim) right-aligned portion.
+func formatLabelWithTagsStyled(filename, displayName string, tags []string, availWidth int, suffix string) string {
+	ts := storage.DefaultDisplayName(filename)
+	rawTags := ""
+	for _, t := range tags {
+		rawTags += " [" + t + "]"
+	}
+	if availWidth <= 0 || ts == "" {
+		label := formatLabel(filename, displayName)
+		var sb strings.Builder
+		sb.WriteString(styleFileName.Render(label))
+		for _, t := range tags {
+			sb.WriteString(" " + styleTag.Render("["+t+"]"))
+		}
+		if suffix != "" {
+			sb.WriteString(styleDim.Render("  " + suffix))
+		}
+		return sb.String()
+	}
+	right := ts
+	if suffix != "" {
+		right = ts + "  " + suffix
+	}
+	isUserName := displayName != "" && displayName != ts
+	name := displayName
+	if !isUserName {
+		name = "no description"
+	}
+	gap := availWidth - lipgloss.Width(name) - lipgloss.Width(rawTags) - lipgloss.Width(right)
+	if gap < 1 {
+		available := availWidth - lipgloss.Width(rawTags) - lipgloss.Width(right) - 1
+		if available < 0 {
+			available = 0
+		}
+		name = string([]rune(name)[:max(0, available)])
+		gap = 1
+	}
+	var sb strings.Builder
+	sb.WriteString(styleFileName.Render(name))
+	for _, t := range tags {
+		sb.WriteString(" " + styleTag.Render("["+t+"]"))
+	}
+	sb.WriteString(strings.Repeat(" ", gap))
+	sb.WriteString(styleDim.Render(right))
+	return sb.String()
 }
 
 // ── new-topic dialog ─────────────────────────────────────────────────────────
@@ -734,7 +866,32 @@ func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
 		}
 		dn := lib.LoadDisplayNames(filtered)
 		durs := lib.LoadDurations(topicName, filtered)
-		return loadFilesMsg{topicName: topicName, files: filtered, displayNames: dn, durations: durs, transcripts: transcripts}
+		// Match global tag keywords against each file's transcript (case-insensitive).
+		globalTags, _ := lib.GetGlobalTags()
+		tags := make(map[string][]string)
+		if len(globalTags) > 0 {
+			for _, f := range filtered {
+				if !transcripts[f] {
+					continue
+				}
+				base := f[:len(f)-len(filepath.Ext(f))]
+				content, err := os.ReadFile(filepath.Join(lib.Path, topicName, base+".txt"))
+				if err != nil {
+					continue
+				}
+				lower := strings.ToLower(string(content))
+				var matched []string
+				for _, tag := range globalTags {
+					if strings.Contains(lower, strings.ToLower(tag)) {
+						matched = append(matched, tag)
+					}
+				}
+				if len(matched) > 0 {
+					tags[f] = matched
+				}
+			}
+		}
+		return loadFilesMsg{topicName: topicName, files: filtered, displayNames: dn, durations: durs, transcripts: transcripts, tags: tags}
 	}
 }
 
@@ -999,6 +1156,7 @@ type topicNode struct {
 	displayNames map[string]string
 	durations    map[string]time.Duration
 	transcripts  map[string]bool
+	tags         map[string][]string
 	loaded       bool
 }
 
@@ -1021,6 +1179,8 @@ type libraryModel struct {
 	move             libMoveDialog
 	topicRename      topicRenameDialog
 	rename           renameDialog
+	tagDlg           tagDialog
+	globalTags       []string // library-wide tag keyword list
 	ps               playerState
 	transcriber      *transcriber.Client
 	pendingJobs      map[string]string // filename -> jobID
@@ -1044,7 +1204,7 @@ func (m libraryModel) Init() tea.Cmd {
 	if m.lib == nil {
 		return nil
 	}
-	return loadTopicsCmd(m.lib)
+	return tea.Batch(loadTopicsCmd(m.lib), loadGlobalTagsCmd(m.lib))
 }
 
 func (m libraryModel) buildRows() []flatRow {
@@ -1201,6 +1361,16 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 				input:     current,
 			}
 		}
+	case "t":
+		if m.lib != nil {
+			tagsCopy := make([]string, len(m.globalTags))
+			copy(tagsCopy, m.globalTags)
+			m.tagDlg = tagDialog{
+				active: true,
+				tags:   tagsCopy,
+				mode:   tagDialogView,
+			}
+		}
 	case "m":
 		if m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
 			row := rows[m.cursor]
@@ -1315,6 +1485,76 @@ func (m libraryModel) handleRenameKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 	return m, nil
 }
 
+func (m libraryModel) handleTagKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
+	switch m.tagDlg.mode {
+	case tagDialogView:
+		switch msg.String() {
+		case "esc":
+			m.tagDlg = tagDialog{}
+		case "up", "k":
+			if m.tagDlg.cursor > 0 {
+				m.tagDlg.cursor--
+			}
+		case "down", "j":
+			if m.tagDlg.cursor < len(m.tagDlg.tags)-1 {
+				m.tagDlg.cursor++
+			}
+		case "a", "enter":
+			m.tagDlg.mode = tagDialogAdd
+			m.tagDlg.input = ""
+			m.tagDlg.errMsg = ""
+		case "delete", "d":
+			if len(m.tagDlg.tags) > 0 {
+				idx := m.tagDlg.cursor
+				newTags := make([]string, 0, len(m.tagDlg.tags)-1)
+				newTags = append(newTags, m.tagDlg.tags[:idx]...)
+				newTags = append(newTags, m.tagDlg.tags[idx+1:]...)
+				m.tagDlg.tags = newTags
+				if m.tagDlg.cursor >= len(m.tagDlg.tags) && m.tagDlg.cursor > 0 {
+					m.tagDlg.cursor--
+				}
+				m.tagDlg.errMsg = ""
+				return m, setGlobalTagsCmd(m.lib, m.tagDlg.tags)
+			}
+		}
+	case tagDialogAdd:
+		switch msg.String() {
+		case "esc":
+			m.tagDlg.mode = tagDialogView
+			m.tagDlg.input = ""
+			m.tagDlg.errMsg = ""
+		case "enter":
+			tag := strings.TrimSpace(m.tagDlg.input)
+			if tag == "" {
+				m.tagDlg.errMsg = "Tag must not be empty"
+				return m, nil
+			}
+			for _, existing := range m.tagDlg.tags {
+				if existing == tag {
+					m.tagDlg.errMsg = "Tag already exists"
+					return m, nil
+				}
+			}
+			m.tagDlg.tags = append(m.tagDlg.tags, tag)
+			m.tagDlg.cursor = len(m.tagDlg.tags) - 1
+			m.tagDlg.input = ""
+			m.tagDlg.errMsg = ""
+			m.tagDlg.mode = tagDialogView
+			return m, setGlobalTagsCmd(m.lib, m.tagDlg.tags)
+		case "backspace", "ctrl+h":
+			if len(m.tagDlg.input) > 0 {
+				runes := []rune(m.tagDlg.input)
+				m.tagDlg.input = string(runes[:len(runes)-1])
+			}
+		default:
+			if r := msg.Runes; len(r) > 0 {
+				m.tagDlg.input += string(r)
+			}
+		}
+	}
+	return m, nil
+}
+
 func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -1370,6 +1610,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 				m.topics[i].displayNames = msg.displayNames
 				m.topics[i].durations = msg.durations
 				m.topics[i].transcripts = msg.transcripts
+				m.topics[i].tags = msg.tags
 				m.topics[i].loaded = true
 				break
 			}
@@ -1504,6 +1745,29 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			}
 		}
 
+	case globalTagsLoadedMsg:
+		if msg.err != nil {
+			slog.Warn("tab1: loadGlobalTags error", "err", msg.err)
+			return m, nil
+		}
+		m.globalTags = msg.tags
+
+	case setGlobalTagsDoneMsg:
+		if msg.err != nil {
+			slog.Warn("tab1: setGlobalTags error", "err", msg.err)
+			m.tagDlg.errMsg = fmt.Sprintf("Error: %v", msg.err)
+			return m, nil
+		}
+		m.globalTags = msg.tags
+		// Reload all expanded topics so tag matches are recomputed.
+		var cmds []tea.Cmd
+		for _, t := range m.topics {
+			if t.expanded {
+				cmds = append(cmds, loadFilesCmd(m.lib, t.name))
+			}
+		}
+		return m, tea.Batch(cmds...)
+
 	case renameTopicDoneMsg:
 		if msg.err != nil {
 			slog.Warn("tab1: renameTopic error", "old", msg.oldName, "new", msg.newName, "err", msg.err)
@@ -1611,6 +1875,9 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		if m.rename.active {
 			return m.handleRenameKey(msg)
 		}
+		if m.tagDlg.active {
+			return m.handleTagKey(msg)
+		}
 		return m.handleNormalKey(msg)
 	}
 	return m, nil
@@ -1659,11 +1926,12 @@ func (m libraryModel) view() string {
 				badge = " [E]"
 			}
 			durStr += badge
+			fileTags := m.topics[row.topicIdx].tags[f]
 			if i == m.cursor {
-				label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], availWidth, durStr)
+				label := formatLabelWithTags(f, m.topics[row.topicIdx].displayNames[f], fileTags, availWidth, durStr)
 				line = prefix + label
 			} else {
-				label := formatLabelAlignedStyled(f, m.topics[row.topicIdx].displayNames[f], availWidth, durStr)
+				label := formatLabelWithTagsStyled(f, m.topics[row.topicIdx].displayNames[f], fileTags, availWidth, durStr)
 				line = prefix + label
 			}
 		}
@@ -1694,6 +1962,9 @@ func (m libraryModel) overlayContent() string {
 	}
 	if m.rename.active {
 		return m.renderRenameDialog()
+	}
+	if m.tagDlg.active {
+		return m.renderTagDialog()
 	}
 	return ""
 }
@@ -1770,6 +2041,54 @@ func (m libraryModel) renderRenameDialog() string {
 	} else {
 		body = prompt + "\n" + styleDim.Render("Enter confirm  •  Esc cancel")
 	}
+	return styleDialog.Render(body)
+}
+
+func (m libraryModel) renderTagDialog() string {
+	header := styleTitle.Render("Global Tag Keywords")
+	var body string
+
+	if m.tagDlg.mode == tagDialogView {
+		body = header + "\n" + styleDim.Render("Files with a transcript are labelled when the keyword appears in it.") + "\n\n"
+		if len(m.tagDlg.tags) == 0 {
+			body += styleDim.Render("  (no tags yet)") + "\n"
+		} else {
+			for i, tag := range m.tagDlg.tags {
+				if i == m.tagDlg.cursor {
+					body += "  ▶ " + styleTag.Render(tag) + "\n"
+				} else {
+					body += styleDim.Render("  • "+tag) + "\n"
+				}
+			}
+		}
+		body += "\n"
+		if m.tagDlg.errMsg != "" {
+			body += styleDialogErr.Render(m.tagDlg.errMsg)
+		} else {
+			var hints string
+			if len(m.tagDlg.tags) > 0 {
+				hints = "↑/↓ select  •  a add  •  d / del remove  •  Esc close"
+			} else {
+				hints = "a add  •  Esc close"
+			}
+			body += styleDim.Render(hints)
+		}
+	} else { // tagDialogAdd
+		body = header + "\n\n"
+		for _, tag := range m.tagDlg.tags {
+			body += styleDim.Render("  • "+tag) + "\n"
+		}
+		if len(m.tagDlg.tags) > 0 {
+			body += "\n"
+		}
+		body += "New keyword: " + m.tagDlg.input + "█\n"
+		if m.tagDlg.errMsg != "" {
+			body += styleDialogErr.Render(m.tagDlg.errMsg)
+		} else {
+			body += styleDim.Render("Enter confirm  •  Esc cancel")
+		}
+	}
+
 	return styleDialog.Render(body)
 }
 
@@ -3182,6 +3501,7 @@ func (m rootModel) helpLines() []string {
 			"  Del           delete file  /  delete topic",
 			"  m             move file to topic",
 			"  r             change description",
+			"  t             manage tag keywords",
 			"  n             new topic",
 			"  R             rename topic",
 		}
