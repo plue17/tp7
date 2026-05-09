@@ -1540,21 +1540,16 @@ func (m libraryModel) view() string {
 			availWidth := m.width - 5 - lipgloss.Width(prefix)
 			durStr := formatDuration(m.topics[row.topicIdx].durations[f])
 			// Transcript badge: [T] done, [~] pending, [E] error.
-			badge := ""
+			// Always reserve 4 chars so all rows stay aligned.
+			badge := "    "
 			if m.topics[row.topicIdx].transcripts[f] {
-				badge = "[T]"
+				badge = " [T]"
 			} else if _, ok := m.pendingJobs[f]; ok {
-				badge = "[~]"
+				badge = " [~]"
 			} else if m.failedJobs[f] {
-				badge = "[E]"
+				badge = " [E]"
 			}
-			if badge != "" {
-				if durStr != "" {
-					durStr = badge + " " + durStr
-				} else {
-					durStr = badge
-				}
-			}
+			durStr += badge
 			if i == m.cursor {
 				label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], availWidth, durStr)
 				line = prefix + label
