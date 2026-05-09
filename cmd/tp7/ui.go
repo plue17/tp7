@@ -1375,8 +1375,13 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			}
 		}
 		// Enqueue files that have no transcript yet and are not already in flight.
+		// Only MP3 files are transcribed — WAV files are skipped because they
+		// will be converted to MP3 first, and only the MP3 gets transcribed.
 		if m.transcriber != nil {
 			for _, f := range msg.files {
+				if !strings.EqualFold(filepath.Ext(f), ".mp3") {
+					continue // only transcribe MP3s
+				}
 				if msg.transcripts[f] {
 					continue // already transcribed
 				}
