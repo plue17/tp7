@@ -34,8 +34,30 @@ var (
 	styleDialogErr = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
 	styleMultiSel  = lipgloss.NewStyle().Bold(true)
 	stylePlayIcon  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")) // bright green
-	styleTag       = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))            // cyan
+	styleTag       = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))            // cyan (default)
 )
+
+// tagColorPalette maps color numbers 1–9 to ANSI/256 terminal colors.
+var tagColorPalette = [10]lipgloss.Color{
+	0: lipgloss.Color("33"),  // 0 = default cyan
+	1: lipgloss.Color("9"),   // 1 = red
+	2: lipgloss.Color("10"),  // 2 = green
+	3: lipgloss.Color("11"),  // 3 = yellow
+	4: lipgloss.Color("12"),  // 4 = blue
+	5: lipgloss.Color("13"),  // 5 = magenta
+	6: lipgloss.Color("14"),  // 6 = cyan (bright)
+	7: lipgloss.Color("208"), // 7 = orange
+	8: lipgloss.Color("201"), // 8 = pink
+	9: lipgloss.Color("82"),  // 9 = lime
+}
+
+// tagStyle returns a lipgloss style for the given tag color (0 = default).
+func tagStyle(color int) lipgloss.Style {
+	if color < 0 || color > 9 {
+		color = 0
+	}
+	return lipgloss.NewStyle().Foreground(tagColorPalette[color])
+}
 
 // ── tabs ──────────────────────────────────────────────────────────────────────
 
@@ -194,23 +216,24 @@ const (
 
 // tagDialog manages the library-wide tag keyword list.
 // Tags are global: a voice memo is labelled with a tag when that keyword
-// appears anywhere in its transcript.
+// appears in its transcript (whole-word or substring depending on mode).
 type tagDialog struct {
-	active bool
-	tags   []string // working copy of the global keyword list
-	cursor int
-	mode   tagDialogMode
-	input  string
-	errMsg string
+	active  bool
+	tags    []storage.Tag // working copy of the global keyword list
+	cursor  int
+	mode    tagDialogMode
+	input   string
+	addMode storage.TagMode // mode selected while in tagDialogAdd
+	errMsg  string
 }
 
 type globalTagsLoadedMsg struct {
-	tags []string
+	tags []storage.Tag
 	err  error
 }
 
 type setGlobalTagsDoneMsg struct {
-	tags []string
+	tags []storage.Tag
 	err  error
 }
 
@@ -221,7 +244,7 @@ func loadGlobalTagsCmd(lib *storage.Library) tea.Cmd {
 	}
 }
 
-func setGlobalTagsCmd(lib *storage.Library, tags []string) tea.Cmd {
+func setGlobalTagsCmd(lib *storage.Library, tags []storage.Tag) tea.Cmd {
 	return func() tea.Msg {
 		err := lib.SetGlobalTags(tags)
 		return setGlobalTagsDoneMsg{tags: tags, err: err}
@@ -407,8 +430,9 @@ func formatLabelWithTags(filename, displayName string, tags []string, availWidth
 }
 
 // formatLabelWithTagsStyled is like formatLabelAlignedStyled but renders tags
-// in cyan between the (white) name and the (dim) right-aligned portion.
-func formatLabelWithTagsStyled(filename, displayName string, tags []string, availWidth int, suffix string) string {
+// in their assigned colors between the (white) name and the (dim) right-aligned portion.
+// colorMap maps keyword → color index (0 = default).
+func formatLabelWithTagsStyled(filename, displayName string, tags []string, colorMap map[string]int, availWidth int, suffix string) string {
 	ts := storage.DefaultDisplayName(filename)
 	rawTags := ""
 	for _, t := range tags {
@@ -419,7 +443,7 @@ func formatLabelWithTagsStyled(filename, displayName string, tags []string, avai
 		var sb strings.Builder
 		sb.WriteString(styleFileName.Render(label))
 		for _, t := range tags {
-			sb.WriteString(" " + styleTag.Render("["+t+"]"))
+			sb.WriteString(" " + tagStyle(colorMap[t]).Render("["+t+"]"))
 		}
 		if suffix != "" {
 			sb.WriteString(styleDim.Render("  " + suffix))
@@ -447,7 +471,7 @@ func formatLabelWithTagsStyled(filename, displayName string, tags []string, avai
 	var sb strings.Builder
 	sb.WriteString(styleFileName.Render(name))
 	for _, t := range tags {
-		sb.WriteString(" " + styleTag.Render("["+t+"]"))
+		sb.WriteString(" " + tagStyle(colorMap[t]).Render("["+t+"]"))
 	}
 	sb.WriteString(strings.Repeat(" ", gap))
 	sb.WriteString(styleDim.Render(right))
@@ -872,18 +896,24 @@ func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
 		globalTags, _ := lib.GetGlobalTags()
 		tags := make(map[string][]string)
 		if len(globalTags) > 0 {
-			// Pre-compile one regexp per keyword: (?i)\bKEYWORD\b
+			// Pre-compile one regexp per keyword based on its mode.
 			type tagPattern struct {
 				name string
 				re   *regexp.Regexp
 			}
 			patterns := make([]tagPattern, 0, len(globalTags))
 			for _, tag := range globalTags {
-				re, err := regexp.Compile(`(?i)\b` + regexp.QuoteMeta(tag) + `\b`)
+				var pattern string
+				if tag.Mode == storage.TagModeWord {
+					pattern = `(?i)\b` + regexp.QuoteMeta(tag.Keyword) + `\b`
+				} else {
+					pattern = `(?i)` + regexp.QuoteMeta(tag.Keyword)
+				}
+				re, err := regexp.Compile(pattern)
 				if err != nil {
 					continue
 				}
-				patterns = append(patterns, tagPattern{name: tag, re: re})
+				patterns = append(patterns, tagPattern{name: tag.Keyword, re: re})
 			}
 			for _, f := range filtered {
 				if !transcripts[f] {
@@ -1195,7 +1225,7 @@ type libraryModel struct {
 	topicRename      topicRenameDialog
 	rename           renameDialog
 	tagDlg           tagDialog
-	globalTags       []string // library-wide tag keyword list
+	globalTags       []storage.Tag // library-wide tag list
 	ps               playerState
 	transcriber      *transcriber.Client
 	pendingJobs      map[string]string // filename -> jobID
@@ -1378,12 +1408,13 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 		}
 	case "t":
 		if m.lib != nil {
-			tagsCopy := make([]string, len(m.globalTags))
+			tagsCopy := make([]storage.Tag, len(m.globalTags))
 			copy(tagsCopy, m.globalTags)
 			m.tagDlg = tagDialog{
-				active: true,
-				tags:   tagsCopy,
-				mode:   tagDialogView,
+				active:  true,
+				tags:    tagsCopy,
+				mode:    tagDialogView,
+				addMode: storage.TagModeWord,
 			}
 		}
 	case "m":
@@ -1517,11 +1548,12 @@ func (m libraryModel) handleTagKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 		case "a", "enter":
 			m.tagDlg.mode = tagDialogAdd
 			m.tagDlg.input = ""
+			m.tagDlg.addMode = storage.TagModeWord
 			m.tagDlg.errMsg = ""
 		case "delete", "d":
 			if len(m.tagDlg.tags) > 0 {
 				idx := m.tagDlg.cursor
-				newTags := make([]string, 0, len(m.tagDlg.tags)-1)
+				newTags := make([]storage.Tag, 0, len(m.tagDlg.tags)-1)
 				newTags = append(newTags, m.tagDlg.tags[:idx]...)
 				newTags = append(newTags, m.tagDlg.tags[idx+1:]...)
 				m.tagDlg.tags = newTags
@@ -1531,6 +1563,15 @@ func (m libraryModel) handleTagKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 				m.tagDlg.errMsg = ""
 				return m, setGlobalTagsCmd(m.lib, m.tagDlg.tags)
 			}
+		default:
+			// 1–9: set color of selected tag
+			if len(m.tagDlg.tags) > 0 && len(msg.String()) == 1 {
+				if c := msg.String()[0]; c >= '1' && c <= '9' {
+					m.tagDlg.tags[m.tagDlg.cursor].Color = int(c - '0')
+					m.tagDlg.errMsg = ""
+					return m, setGlobalTagsCmd(m.lib, m.tagDlg.tags)
+				}
+			}
 		}
 	case tagDialogAdd:
 		switch msg.String() {
@@ -1538,19 +1579,25 @@ func (m libraryModel) handleTagKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 			m.tagDlg.mode = tagDialogView
 			m.tagDlg.input = ""
 			m.tagDlg.errMsg = ""
+		case "tab":
+			if m.tagDlg.addMode == storage.TagModeWord {
+				m.tagDlg.addMode = storage.TagModeContains
+			} else {
+				m.tagDlg.addMode = storage.TagModeWord
+			}
 		case "enter":
 			tag := strings.TrimSpace(m.tagDlg.input)
 			if tag == "" {
-				m.tagDlg.errMsg = "Tag must not be empty"
+				m.tagDlg.errMsg = "Keyword must not be empty"
 				return m, nil
 			}
 			for _, existing := range m.tagDlg.tags {
-				if existing == tag {
-					m.tagDlg.errMsg = "Tag already exists"
+				if existing.Keyword == tag {
+					m.tagDlg.errMsg = "Keyword already exists"
 					return m, nil
 				}
 			}
-			m.tagDlg.tags = append(m.tagDlg.tags, tag)
+			m.tagDlg.tags = append(m.tagDlg.tags, storage.Tag{Keyword: tag, Mode: m.tagDlg.addMode})
 			m.tagDlg.cursor = len(m.tagDlg.tags) - 1
 			m.tagDlg.input = ""
 			m.tagDlg.errMsg = ""
@@ -1902,6 +1949,11 @@ func (m libraryModel) view() string {
 	if m.lib == nil {
 		return styleDim.Render("No library configured.") + "\n"
 	}
+	// Build a keyword→color map from the global tags for use in rendering.
+	tagColorMap := make(map[string]int, len(m.globalTags))
+	for _, tag := range m.globalTags {
+		tagColorMap[tag.Keyword] = tag.Color
+	}
 	rows := m.buildRows()
 	listHeight := m.height - 1
 	if listHeight < 1 {
@@ -1946,7 +1998,7 @@ func (m libraryModel) view() string {
 				label := formatLabelWithTags(f, m.topics[row.topicIdx].displayNames[f], fileTags, availWidth, durStr)
 				line = prefix + label
 			} else {
-				label := formatLabelWithTagsStyled(f, m.topics[row.topicIdx].displayNames[f], fileTags, availWidth, durStr)
+				label := formatLabelWithTagsStyled(f, m.topics[row.topicIdx].displayNames[f], fileTags, tagColorMap, availWidth, durStr)
 				line = prefix + label
 			}
 		}
@@ -2063,26 +2115,40 @@ func (m libraryModel) renderTagDialog() string {
 	header := styleTitle.Render("Global Tag Keywords")
 	var body string
 
+	// Color swatch bar: "1 ■ 2 ■ … 9 ■"
+	swatchBar := ""
+	for i := 1; i <= 9; i++ {
+		swatchBar += styleDim.Render(fmt.Sprintf("%d", i)) + tagStyle(i).Render("■") + " "
+	}
+	swatchBar = strings.TrimRight(swatchBar, " ")
+
 	if m.tagDlg.mode == tagDialogView {
-		body = header + "\n" + styleDim.Render("Files with a transcript are labelled when the keyword appears in it.") + "\n\n"
+		body = header + "\n" + styleDim.Render("Voice memos are labelled when a keyword is found in their transcript.") + "\n\n"
 		if len(m.tagDlg.tags) == 0 {
 			body += styleDim.Render("  (no tags yet)") + "\n"
 		} else {
 			for i, tag := range m.tagDlg.tags {
-				if i == m.tagDlg.cursor {
-					body += "  ▶ " + styleTag.Render(tag) + "\n"
+				var modeLabel string
+				if tag.Mode == storage.TagModeWord {
+					modeLabel = styleDim.Render(" [word]")
 				} else {
-					body += styleDim.Render("  • "+tag) + "\n"
+					modeLabel = styleDim.Render(" [~]")
+				}
+				ts := tagStyle(tag.Color)
+				if i == m.tagDlg.cursor {
+					body += "  ▶ " + ts.Render(tag.Keyword) + modeLabel + "\n"
+				} else {
+					body += styleDim.Render("  • ") + ts.Render(tag.Keyword) + modeLabel + "\n"
 				}
 			}
 		}
-		body += "\n"
+		body += "\n" + swatchBar + "\n"
 		if m.tagDlg.errMsg != "" {
 			body += styleDialogErr.Render(m.tagDlg.errMsg)
 		} else {
 			var hints string
 			if len(m.tagDlg.tags) > 0 {
-				hints = "↑/↓ select  •  a add  •  d / del remove  •  Esc close"
+				hints = "↑/↓ select  •  1-9 color  •  a add  •  d / del remove  •  Esc close"
 			} else {
 				hints = "a add  •  Esc close"
 			}
@@ -2091,12 +2157,23 @@ func (m libraryModel) renderTagDialog() string {
 	} else { // tagDialogAdd
 		body = header + "\n\n"
 		for _, tag := range m.tagDlg.tags {
-			body += styleDim.Render("  • "+tag) + "\n"
+			body += styleDim.Render("  • "+tag.Keyword) + "\n"
 		}
 		if len(m.tagDlg.tags) > 0 {
 			body += "\n"
 		}
 		body += "New keyword: " + m.tagDlg.input + "█\n"
+		// Mode toggle line
+		wordLabel := "word"
+		containsLabel := "contains"
+		if m.tagDlg.addMode == storage.TagModeWord {
+			wordLabel = styleTag.Render("● " + wordLabel)
+			containsLabel = styleDim.Render("○ " + containsLabel)
+		} else {
+			wordLabel = styleDim.Render("○ " + wordLabel)
+			containsLabel = styleTag.Render("● " + containsLabel)
+		}
+		body += "Match:       " + wordLabel + "  " + containsLabel + "  " + styleDim.Render("(Tab)") + "\n"
 		if m.tagDlg.errMsg != "" {
 			body += styleDialogErr.Render(m.tagDlg.errMsg)
 		} else {
@@ -3287,16 +3364,25 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case "1":
+			if m.library.tagDlg.active {
+				break
+			}
 			m.imports.ps.stop()
 			m.ignored.ps.stop()
 			m.active = tabLibrary
 			return m, nil
 		case "2":
+			if m.library.tagDlg.active {
+				break
+			}
 			m.library.ps.stop()
 			m.ignored.ps.stop()
 			m.active = tabImport
 			return m, nil
 		case "3":
+			if m.library.tagDlg.active {
+				break
+			}
 			m.library.ps.stop()
 			m.imports.ps.stop()
 			m.active = tabIgnored

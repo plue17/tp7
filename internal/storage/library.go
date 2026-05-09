@@ -582,14 +582,32 @@ func (l *Library) WriteTranscript(topicName, filename, text string) error {
 	return os.WriteFile(txtPath, []byte(text), 0o644)
 }
 
+// TagMode describes how a tag keyword is matched against transcript text.
+type TagMode string
+
+const (
+	// TagModeWord matches the keyword only as a complete word (uses \b word boundaries).
+	TagModeWord TagMode = "word"
+	// TagModeContains matches the keyword as a substring anywhere in the text.
+	TagModeContains TagMode = "contains"
+)
+
+// Tag is a library-wide keyword with an associated match mode and display color.
+// Color is 0 for the default color, or 1–9 for a user-selected palette color.
+type Tag struct {
+	Keyword string  `yaml:"keyword"`
+	Mode    TagMode `yaml:"mode"`
+	Color   int     `yaml:"color,omitempty"`
+}
+
 // tagsFilePath returns the path to the central tags file for the library.
 func (l *Library) tagsFilePath() string {
 	return filepath.Join(l.Path, tagsFile)
 }
 
-// GetGlobalTags reads the library-wide list of tag keywords.
+// GetGlobalTags reads the library-wide list of tags.
 // Returns nil when no tags have been defined yet.
-func (l *Library) GetGlobalTags() ([]string, error) {
+func (l *Library) GetGlobalTags() ([]Tag, error) {
 	data, err := os.ReadFile(l.tagsFilePath())
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -597,16 +615,16 @@ func (l *Library) GetGlobalTags() ([]string, error) {
 		}
 		return nil, fmt.Errorf("reading tags: %w", err)
 	}
-	var tags []string
+	var tags []Tag
 	if err := yaml.Unmarshal(data, &tags); err != nil {
 		return nil, fmt.Errorf("parsing tags: %w", err)
 	}
 	return tags, nil
 }
 
-// SetGlobalTags writes the library-wide list of tag keywords.
+// SetGlobalTags writes the library-wide list of tags.
 // An empty or nil slice removes the tags file entirely.
-func (l *Library) SetGlobalTags(tags []string) error {
+func (l *Library) SetGlobalTags(tags []Tag) error {
 	if len(tags) == 0 {
 		if err := os.Remove(l.tagsFilePath()); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("removing tags file: %w", err)
