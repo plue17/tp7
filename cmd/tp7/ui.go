@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -866,10 +867,24 @@ func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
 		}
 		dn := lib.LoadDisplayNames(filtered)
 		durs := lib.LoadDurations(topicName, filtered)
-		// Match global tag keywords against each file's transcript (case-insensitive).
+		// Match global tag keywords against each file's transcript.
+		// Each keyword must appear as a whole word (case-insensitive).
 		globalTags, _ := lib.GetGlobalTags()
 		tags := make(map[string][]string)
 		if len(globalTags) > 0 {
+			// Pre-compile one regexp per keyword: (?i)\bKEYWORD\b
+			type tagPattern struct {
+				name string
+				re   *regexp.Regexp
+			}
+			patterns := make([]tagPattern, 0, len(globalTags))
+			for _, tag := range globalTags {
+				re, err := regexp.Compile(`(?i)\b` + regexp.QuoteMeta(tag) + `\b`)
+				if err != nil {
+					continue
+				}
+				patterns = append(patterns, tagPattern{name: tag, re: re})
+			}
 			for _, f := range filtered {
 				if !transcripts[f] {
 					continue
@@ -879,11 +894,11 @@ func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
 				if err != nil {
 					continue
 				}
-				lower := strings.ToLower(string(content))
+				text := string(content)
 				var matched []string
-				for _, tag := range globalTags {
-					if strings.Contains(lower, strings.ToLower(tag)) {
-						matched = append(matched, tag)
+				for _, p := range patterns {
+					if p.re.MatchString(text) {
+						matched = append(matched, p.name)
 					}
 				}
 				if len(matched) > 0 {
