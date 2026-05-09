@@ -1616,3 +1616,419 @@ time=2026-05-09T14:26:42.756+02:00 level=DEBUG msg="rootModel: routing playback 
 time=2026-05-09T14:26:42.756+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
 time=2026-05-09T14:26:42.857+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
 time=2026-05-09T14:26:42.857+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:42.958+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:42.958+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:43.058+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:43.058+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:43.159+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:43.159+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:43.260+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:43.260+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:43.361+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:43.361+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:43.462+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:43.462+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:43.563+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:43.563+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:43.663+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:43.663+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:43.764+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:43.764+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:43.864+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:43.865+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:43.965+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:43.965+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:44.066+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:44.066+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:44.166+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:44.166+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:44.267+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:44.267+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:44.367+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:44.368+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:44.468+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:44.468+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:44.569+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:44.569+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:44.669+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:44.669+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:44.770+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:44.770+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:44.870+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:44.870+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:44.971+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:44.971+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:45.072+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:45.072+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:45.173+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:45.173+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:45.273+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:45.273+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:45.374+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:45.374+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:45.475+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:45.475+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:45.576+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:45.576+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:45.677+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:45.677+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:45.778+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:45.778+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:45.878+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:45.878+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:45.979+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:45.979+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:46.080+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:46.080+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:46.180+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:46.181+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:46.282+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:46.282+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:46.367+02:00 level=DEBUG msg="importer: searching for device" err="USB device 2367:0019 not found in sysfs"
+time=2026-05-09T14:26:46.382+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:46.382+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:46.483+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:46.483+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:46.584+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:46.584+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:46.684+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:46.684+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:46.785+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:46.785+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:46.886+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:46.886+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:46.986+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:46.986+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:47.086+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:47.086+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:47.188+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:47.188+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:47.289+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:47.289+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:47.389+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:47.389+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:47.490+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:47.490+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:47.591+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:47.592+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:47.692+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:47.692+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:47.793+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:47.793+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:47.894+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:47.894+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:47.995+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:47.995+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:48.096+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:48.096+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:48.197+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:48.197+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:48.298+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:48.298+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:48.398+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:48.399+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:48.499+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:48.499+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:48.600+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:48.600+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:48.700+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:48.700+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:48.801+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:48.801+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:48.901+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:48.901+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:49.002+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:49.002+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:49.103+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:49.103+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:49.204+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:49.204+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:49.305+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:49.305+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:49.405+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:49.405+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:49.506+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:49.506+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:49.607+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:49.607+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:49.708+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:49.708+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:49.809+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:49.809+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:49.909+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:49.909+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:50.011+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:50.011+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:50.111+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:50.111+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:50.212+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:50.212+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:50.313+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:50.313+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:50.414+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:50.414+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:50.514+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:50.514+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:50.614+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:50.614+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:50.715+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:50.715+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:50.816+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:50.816+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:50.917+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:50.917+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:51.017+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:51.017+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:51.118+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:51.118+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:51.219+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:51.219+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:51.319+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:51.319+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:51.366+02:00 level=DEBUG msg="importer: searching for device" err="USB device 2367:0019 not found in sysfs"
+time=2026-05-09T14:26:51.419+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:51.420+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:51.520+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:51.520+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:51.621+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:51.621+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:51.722+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:51.722+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:51.822+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:51.822+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:51.924+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:51.924+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:52.024+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:52.024+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:52.125+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:52.125+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:52.226+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:52.226+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:52.326+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:52.326+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:52.427+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:52.427+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:52.527+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:52.528+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:52.628+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:52.628+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:52.728+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:52.728+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:52.829+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:52.829+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:52.930+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:52.930+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:53.030+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:53.030+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:53.131+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:53.131+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:53.232+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:53.232+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:53.332+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:53.332+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:53.432+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:53.432+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:53.533+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:53.533+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:53.634+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:53.634+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:53.734+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:53.734+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:53.835+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:53.835+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:53.935+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:53.935+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:54.036+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:54.037+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:54.138+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:54.138+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:54.238+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:54.238+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:54.338+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:54.338+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:54.440+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:54.440+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:54.541+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:54.541+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:54.641+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:54.641+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:54.742+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:54.742+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:54.842+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:54.842+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:54.943+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:54.944+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:55.044+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:55.044+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:55.145+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:55.145+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:55.245+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:55.245+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:55.346+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:55.346+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:55.447+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:55.447+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:55.548+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:55.548+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:55.648+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:55.648+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:55.748+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:55.748+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:55.849+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:55.849+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:55.949+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:55.949+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:56.050+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:56.050+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:56.150+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:56.150+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:56.251+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:56.251+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:56.352+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:56.352+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:56.366+02:00 level=DEBUG msg="importer: searching for device" err="USB device 2367:0019 not found in sysfs"
+time=2026-05-09T14:26:56.452+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:56.452+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:56.552+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:56.552+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:56.654+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:56.654+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:56.754+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:56.754+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:56.855+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:56.855+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:56.955+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:56.955+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:57.056+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:57.056+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:57.157+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:57.157+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:57.257+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:57.257+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:57.358+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:57.358+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:57.458+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:57.458+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:57.559+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:57.559+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:57.660+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:57.660+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:57.760+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:57.761+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:57.862+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:57.862+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:57.963+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:57.963+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:58.064+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:58.064+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:58.164+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:58.165+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:58.265+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:58.265+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:58.365+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:58.365+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:58.466+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:58.466+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:58.567+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:58.567+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:58.668+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:58.668+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:58.768+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:58.768+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:58.869+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:58.869+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:58.970+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:58.970+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:59.070+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:59.070+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:59.171+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:59.171+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:59.271+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:59.271+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:59.372+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:59.373+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:59.473+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:59.473+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:59.574+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:59.574+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:59.675+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:59.675+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:59.777+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:59.777+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:59.877+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:59.877+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:26:59.977+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:26:59.977+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:00.078+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:00.078+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:00.178+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:00.178+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:00.279+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:00.279+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:00.380+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:00.380+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:00.480+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:00.480+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:00.582+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:00.582+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:00.682+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:00.682+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:00.783+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:00.783+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:00.884+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:00.884+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:00.984+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:00.985+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:01.085+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:01.086+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:01.186+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:01.186+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:01.286+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:01.286+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:01.366+02:00 level=DEBUG msg="importer: searching for device" err="USB device 2367:0019 not found in sysfs"
+time=2026-05-09T14:27:01.387+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:01.387+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:01.488+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:01.488+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:01.589+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:01.589+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:01.689+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:01.689+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:01.790+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:01.790+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:01.891+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:01.891+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:01.991+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:01.992+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:02.092+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:02.092+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:02.192+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:02.193+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:02.293+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:02.293+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:02.394+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:02.394+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:02.494+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:02.494+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:02.594+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:02.595+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:02.695+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:02.695+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:02.796+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:02.796+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:02.897+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:02.897+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:02.998+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:02.998+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:03.098+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:03.098+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:03.199+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:03.199+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:03.299+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:03.300+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:03.400+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:03.400+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:03.501+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:03.501+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
+time=2026-05-09T14:27:03.602+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
+time=2026-05-09T14:27:03.602+02:00 level=DEBUG msg=playerState.onTick pos=2.2s dur=9.324s path=/home/patrick/tp7/Music/2026-05-05_134322_000.mp3
