@@ -3333,7 +3333,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		// Forward everything to active tab when a tab dialog is open.
-		if m.active == tabLibrary && (m.library.dialog.active || m.library.confirm.mode != libConfirmNone || m.library.move.active || m.library.topicRename.active || m.library.rename.active) {
+		if m.active == tabLibrary && (m.library.dialog.active || m.library.confirm.mode != libConfirmNone || m.library.move.active || m.library.topicRename.active || m.library.rename.active || m.library.tagDlg.active) {
 			lib, cmd := m.library.update(msg)
 			m.library = lib
 			return m, cmd
