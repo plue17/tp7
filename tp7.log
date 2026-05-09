@@ -139,3 +139,5 @@ time=2026-05-08T19:45:01.270+02:00 level=DEBUG msg="rootModel: routing playback 
 time=2026-05-08T19:45:01.270+02:00 level=DEBUG msg=playerState.onTick pos=1.05s dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
 time=2026-05-08T19:45:01.371+02:00 level=DEBUG msg="rootModel: routing playback msg" active=0 type=main.playbackTickMsg
 time=2026-05-08T19:45:01.371+02:00 level=DEBUG msg=playerState.onTick pos=1.05s dur=25m46.296s path=/home/patrick/tp7/Work/2026-05-08_130642_000.mp3
+time=2026-05-09T13:28:50.570+02:00 level=DEBUG msg="config loaded" path=/home/patrick/.config/tp7/tp7.yaml library.path=/home/patrick/tp7 mtp_device.vendor_id=2367 mtp_device.product_id=0019 transcriber.host=192.168.178.169
+time=2026-05-09T13:30:47.714+02:00 level=DEBUG msg="config loaded" path=/home/patrick/.config/tp7/tp7.yaml library.path=/home/patrick/tp7 mtp_device.vendor_id=2367 mtp_device.product_id=0019 transcriber.host=192.168.178.169 transcriber.port=8765

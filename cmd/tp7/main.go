@@ -19,9 +19,9 @@ import (
 )
 
 func main() {
-	defaultConfig := "tp7.yaml"
-	if exe, err := os.Executable(); err == nil {
-		defaultConfig = filepath.Join(filepath.Dir(exe), "tp7.yaml")
+	defaultConfig := filepath.Join(os.Getenv("HOME"), ".config", "tp7", "tp7.yaml")
+	if dir, err := os.UserConfigDir(); err == nil {
+		defaultConfig = filepath.Join(dir, "tp7", "tp7.yaml")
 	}
 
 	configPath := flag.String("c", defaultConfig, "path to configuration file (YAML)")
@@ -60,6 +60,15 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+
+	slog.Debug("config loaded",
+		"path", *configPath,
+		"library.path", cfg.Library.Path,
+		"mtp_device.vendor_id", cfg.MTPDevice.VendorID,
+		"mtp_device.product_id", cfg.MTPDevice.ProductID,
+		"transcriber.host", cfg.Transcriber.Host,
+		"transcriber.port", cfg.Transcriber.Port,
+	)
 
 	var lib *storage.Library
 	if cfg.Library.Path != "" {
