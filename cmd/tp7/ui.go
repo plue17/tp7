@@ -27,19 +27,19 @@ var (
 	styleSelected  = lipgloss.NewStyle().Reverse(true)
 	styleDim       = lipgloss.NewStyle().Faint(true)
 	styleFileName  = lipgloss.NewStyle().Foreground(lipgloss.Color("15"))  // bright white
-	styleTopic     = lipgloss.NewStyle().Foreground(lipgloss.Color("166")) // dark orange
+	styleTopic     = lipgloss.NewStyle().Foreground(lipgloss.Color("244")) // gray
 	styleTab       = lipgloss.NewStyle().Padding(0, 1)
 	styleActiveTab = lipgloss.NewStyle().Padding(0, 1).Bold(true).Underline(true)
 	styleDialog    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2)
 	styleDialogErr = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
 	styleMultiSel  = lipgloss.NewStyle().Bold(true)
 	stylePlayIcon  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")) // bright green
-	styleTag       = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))            // cyan (default)
+	styleTag       = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))            // blue (default)
 )
 
 // tagColorPalette maps color numbers 1–9 to ANSI/256 terminal colors.
 var tagColorPalette = [10]lipgloss.Color{
-	0: lipgloss.Color("33"),  // 0 = default cyan
+	0: lipgloss.Color("12"),  // 0 = default blue
 	1: lipgloss.Color("9"),   // 1 = red
 	2: lipgloss.Color("10"),  // 2 = green
 	3: lipgloss.Color("11"),  // 3 = yellow
