@@ -16,6 +16,7 @@ import (
 	"github.com/plue17/tp7/internal/playback"
 	"github.com/plue17/tp7/internal/storage"
 	"github.com/plue17/tp7/internal/transcriber"
+	"github.com/plue17/tp7/internal/transcript"
 )
 
 // ── styles ────────────────────────────────────────────────────────────────────
@@ -615,6 +616,19 @@ func (ps playerState) progressBar(width int) string {
 	return "[" + strings.Repeat("█", filled) + strings.Repeat("░", width-filled) + "]"
 }
 
+// loadTranscriptForFile tries to parse the transcript file for a given audio
+// file. Returns nil when no transcript exists or when parsing fails.
+func loadTranscriptForFile(lib *storage.Library, topicName, filename string) *transcript.Transcript {
+	base := filename[:len(filename)-len(filepath.Ext(filename))]
+	txtPath := lib.FilePath(topicName, base+".txt")
+	tr, err := transcript.ParseFile(txtPath)
+	if err != nil {
+		slog.Debug("tab1: transcript load failed", "path", txtPath, "err", err)
+		return nil
+	}
+	return tr
+}
+
 func loadTopicsCmd(lib *storage.Library) tea.Cmd {
 	return func() tea.Msg {
 		topics, err := lib.Topics()
@@ -939,21 +953,22 @@ type flatRow struct {
 }
 
 type libraryModel struct {
-	lib         *storage.Library
-	topics      []topicNode
-	cursor      int
-	height      int
-	width       int
-	status      string
-	dialog      newTopicDialog
-	confirm     libConfirmDialog
-	move        libMoveDialog
-	topicRename topicRenameDialog
-	rename      renameDialog
-	ps          playerState
-	transcriber *transcriber.Client
-	pendingJobs map[string]string // filename -> jobID
-	failedJobs  map[string]bool   // filename -> true
+	lib              *storage.Library
+	topics           []topicNode
+	cursor           int
+	height           int
+	width            int
+	status           string
+	dialog           newTopicDialog
+	confirm          libConfirmDialog
+	move             libMoveDialog
+	topicRename      topicRenameDialog
+	rename           renameDialog
+	ps               playerState
+	transcriber      *transcriber.Client
+	pendingJobs      map[string]string // filename -> jobID
+	failedJobs       map[string]bool   // filename -> true
+	activeTranscript *transcript.Transcript
 }
 
 func newLibraryModel(lib *storage.Library, tc *transcriber.Client) libraryModel {
@@ -1088,8 +1103,18 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 				topicName := m.topics[row.topicIdx].name
 				path := m.lib.FilePath(topicName, filename)
 				slog.Debug("tab1 space: toggle", "path", path)
+				// Load transcript when starting a new file; clear when stopping.
+				if m.ps.playingPath != path {
+					m.activeTranscript = loadTranscriptForFile(m.lib, topicName, filename)
+				} else if m.ps.paused {
+					// resuming – keep existing transcript
+				} else {
+					// pausing – keep existing transcript
+				}
 				if cmd := m.ps.toggle(path); cmd != nil {
 					return m, cmd
+				} else if m.ps.playingPath == "" {
+					m.activeTranscript = nil
 				}
 			}
 		}
@@ -1445,6 +1470,9 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 		if msg.err != nil && msg.err != playback.ErrStopped {
 			slog.Warn("tab1: playback error", "path", msg.path, "err", msg.err)
 			m.status = fmt.Sprintf("Playback error: %v", msg.err)
+		}
+		if m.ps.playingPath == "" {
+			m.activeTranscript = nil
 		}
 
 	case transcribeUploadedMsg:
@@ -2802,7 +2830,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
-		inner := tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - headerHeight - footerHeight}
+		inner := tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - headerHeight - footerHeightLib}
 		lib, c1 := m.library.update(inner)
 		imp, c2 := m.imports.update(inner)
 		ign, c3 := m.ignored.update(inner)
@@ -2917,8 +2945,9 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // Layout constants — must match the rows rendered in View().
 const (
-	headerHeight = 2 // tabBar + blank line
-	footerHeight = 2 // playback line + h-for-help line
+	headerHeight    = 2 // tabBar + blank line
+	footerHeight    = 2 // playback line + h-for-help line
+	footerHeightLib = 3 // footerHeight + transcript line
 )
 
 func (m rootModel) View() string {
@@ -2966,9 +2995,30 @@ func (m rootModel) View() string {
 	if !m.ffmpegAvail {
 		helpLine += "  •  mp3 conversion disabled - ffmpeg not installed"
 	}
-	footer := m.playbackLine() + "\n" + styleDim.Render(helpLine)
 
-	contentHeight := m.height - headerHeight - footerHeight
+	// Transcript line: only shown in tab 1 when a parseable transcript is loaded.
+	transcriptLine := ""
+	if m.active == tabLibrary && m.library.activeTranscript != nil {
+		seg := m.library.activeTranscript.At(m.library.ps.playPos)
+		if seg != nil {
+			transcriptLine = styleDim.Render(seg.Text)
+		} else {
+			transcriptLine = styleDim.Render("…")
+		}
+	}
+
+	var footer string
+	if transcriptLine != "" {
+		footer = transcriptLine + "\n" + m.playbackLine() + "\n" + styleDim.Render(helpLine)
+	} else {
+		footer = m.playbackLine() + "\n" + styleDim.Render(helpLine)
+	}
+
+	effFooter := footerHeight
+	if m.active == tabLibrary {
+		effFooter = footerHeightLib
+	}
+	contentHeight := m.height - headerHeight - effFooter
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
