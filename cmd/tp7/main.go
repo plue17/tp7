@@ -16,6 +16,7 @@ import (
 	"github.com/plue17/tp7/internal/converter"
 	"github.com/plue17/tp7/internal/importer"
 	"github.com/plue17/tp7/internal/storage"
+	"github.com/plue17/tp7/internal/transcriber"
 )
 
 func main() {
@@ -70,6 +71,12 @@ func main() {
 		"transcriber.port", cfg.Transcriber.Port,
 	)
 
+	var tc *transcriber.Client
+	if cfg.Transcriber.Host != "" && cfg.Transcriber.Port != 0 {
+		tc = transcriber.New(cfg.Transcriber.Host, cfg.Transcriber.Port)
+		slog.Debug("transcriber client configured", "host", cfg.Transcriber.Host, "port", cfg.Transcriber.Port)
+	}
+
 	var lib *storage.Library
 	if cfg.Library.Path != "" {
 		var err error
@@ -92,7 +99,7 @@ func main() {
 		DeviceStateCh: deviceStateCh,
 	}
 
-	p := tea.NewProgram(newRootModel(lib, entriesCh, deviceStateCh, converter.IsAvailable()), tea.WithAltScreen())
+	p := tea.NewProgram(newRootModel(lib, entriesCh, deviceStateCh, converter.IsAvailable(), tc), tea.WithAltScreen())
 
 	// Forward OS signals to the bubbletea program so Ctrl+C / SIGTERM quit cleanly.
 	sig := make(chan os.Signal, 1)

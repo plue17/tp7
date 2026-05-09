@@ -564,3 +564,19 @@ func (l *Library) RemoveFromTopic(topicName, filename string) error {
 	}
 	return nil
 }
+
+// HasTranscript reports whether a .txt transcript file exists alongside the
+// given audio file in the topic directory.
+func (l *Library) HasTranscript(topicName, filename string) bool {
+	base := filename[:len(filename)-len(filepath.Ext(filename))]
+	txtPath := filepath.Join(l.Path, topicName, base+".txt")
+	_, err := os.Stat(txtPath)
+	return err == nil
+}
+
+// WriteTranscript writes text as a .txt file next to the audio file in the topic.
+func (l *Library) WriteTranscript(topicName, filename, text string) error {
+	base := filename[:len(filename)-len(filepath.Ext(filename))]
+	txtPath := filepath.Join(l.Path, topicName, base+".txt")
+	return os.WriteFile(txtPath, []byte(text), 0o644)
+}

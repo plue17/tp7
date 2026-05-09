@@ -15,6 +15,7 @@ import (
 	"github.com/plue17/tp7/internal/importer"
 	"github.com/plue17/tp7/internal/playback"
 	"github.com/plue17/tp7/internal/storage"
+	"github.com/plue17/tp7/internal/transcriber"
 )
 
 // ── styles ────────────────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ type loadFilesMsg struct {
 	files        []string
 	displayNames map[string]string
 	durations    map[string]time.Duration
+	transcripts  map[string]bool
 	err          error
 }
 
@@ -128,6 +130,31 @@ type batchIgnoredDoneMsg struct {
 }
 
 type convScanDoneMsg struct{ count int }
+
+type transcribeUploadedMsg struct {
+	topicName string
+	filename  string
+	filePath  string
+	jobID     string
+	busy      bool
+	err       error
+}
+
+type transcribePollMsg struct {
+	topicName  string
+	filename   string
+	filePath   string
+	jobID      string
+	done       bool
+	transcript string
+	err        error
+}
+
+type transcriptWrittenMsg struct {
+	topicName string
+	filename  string
+	err       error
+}
 
 // ── rename dialog ─────────────────────────────────────────────────────────────
 
@@ -617,9 +644,21 @@ func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
 				mp3Bases[strings.ToLower(base)] = struct{}{}
 			}
 		}
+		// Build a set of base names that have a .txt transcript.
+		txtBases := make(map[string]struct{})
+		for _, f := range files {
+			if strings.EqualFold(filepath.Ext(f), ".txt") {
+				base := f[:len(f)-len(filepath.Ext(f))]
+				txtBases[strings.ToLower(base)] = struct{}{}
+			}
+		}
 		filtered := files[:0:0]
 		for _, f := range files {
-			if strings.EqualFold(filepath.Ext(f), ".wav") {
+			ext := strings.ToLower(filepath.Ext(f))
+			if ext == ".txt" {
+				continue // shown as indicator badge, not as a list item
+			}
+			if ext == ".wav" {
 				base := f[:len(f)-len(filepath.Ext(f))]
 				if _, hasMp3 := mp3Bases[strings.ToLower(base)]; hasMp3 {
 					continue // skip WAV — MP3 variant will be shown instead
@@ -627,9 +666,16 @@ func loadFilesCmd(lib *storage.Library, topicName string) tea.Cmd {
 			}
 			filtered = append(filtered, f)
 		}
+		transcripts := make(map[string]bool)
+		for _, f := range filtered {
+			base := strings.ToLower(f[:len(f)-len(filepath.Ext(f))])
+			if _, ok := txtBases[base]; ok {
+				transcripts[f] = true
+			}
+		}
 		dn := lib.LoadDisplayNames(filtered)
 		durs := lib.LoadDurations(topicName, filtered)
-		return loadFilesMsg{topicName: topicName, files: filtered, displayNames: dn, durations: durs}
+		return loadFilesMsg{topicName: topicName, files: filtered, displayNames: dn, durations: durs, transcripts: transcripts}
 	}
 }
 
@@ -834,6 +880,45 @@ func deleteTopicCmd(lib *storage.Library, name string) tea.Cmd {
 	}
 }
 
+func transcribeUploadCmd(client *transcriber.Client, topicName, filename, filePath string) tea.Cmd {
+	return func() tea.Msg {
+		for {
+			result, err := client.Upload(filePath)
+			if err != nil {
+				return transcribeUploadedMsg{topicName: topicName, filename: filename, filePath: filePath, err: err}
+			}
+			if !result.Busy {
+				return transcribeUploadedMsg{topicName: topicName, filename: filename, filePath: filePath, jobID: result.JobID}
+			}
+			// 503 – server busy, wait and retry
+			time.Sleep(5 * time.Second)
+		}
+	}
+}
+
+func transcribePollCmd(client *transcriber.Client, topicName, filename, filePath, jobID string) tea.Cmd {
+	return func() tea.Msg {
+		time.Sleep(5 * time.Second)
+		result, err := client.Status(jobID)
+		return transcribePollMsg{
+			topicName:  topicName,
+			filename:   filename,
+			filePath:   filePath,
+			jobID:      jobID,
+			done:       result.Done,
+			transcript: result.Transcript,
+			err:        err,
+		}
+	}
+}
+
+func transcriptWriteCmd(lib *storage.Library, topicName, filename, text string) tea.Cmd {
+	return func() tea.Msg {
+		err := lib.WriteTranscript(topicName, filename, text)
+		return transcriptWrittenMsg{topicName: topicName, filename: filename, err: err}
+	}
+}
+
 // ── library model (1) ────────────────────────────────────────────────────────
 
 type topicNode struct {
@@ -842,6 +927,7 @@ type topicNode struct {
 	files        []string
 	displayNames map[string]string
 	durations    map[string]time.Duration
+	transcripts  map[string]bool
 	loaded       bool
 }
 
@@ -865,10 +951,20 @@ type libraryModel struct {
 	topicRename topicRenameDialog
 	rename      renameDialog
 	ps          playerState
+	transcriber *transcriber.Client
+	pendingJobs map[string]string // filename -> jobID
+	failedJobs  map[string]bool   // filename -> true
 }
 
-func newLibraryModel(lib *storage.Library) libraryModel {
-	return libraryModel{lib: lib, status: "Loading library…", ps: newPlayerState()}
+func newLibraryModel(lib *storage.Library, tc *transcriber.Client) libraryModel {
+	return libraryModel{
+		lib:         lib,
+		status:      "Loading library…",
+		ps:          newPlayerState(),
+		transcriber: tc,
+		pendingJobs: make(map[string]string),
+		failedJobs:  make(map[string]bool),
+	}
 }
 
 func (m libraryModel) Init() tea.Cmd {
@@ -1026,6 +1122,18 @@ func (m libraryModel) handleNormalKey(msg tea.KeyMsg) (libraryModel, tea.Cmd) {
 		if m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
 			row := rows[m.cursor]
 			return m, loadMoveTopicsCmd(m.lib, m.topics[row.topicIdx].name, m.topics[row.topicIdx].files[row.fileIdx])
+		}
+	case "t":
+		if m.transcriber != nil && m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
+			row := rows[m.cursor]
+			filename := m.topics[row.topicIdx].files[row.fileIdx]
+			topicName := m.topics[row.topicIdx].name
+			// Don't start a second job while one is already running.
+			if _, pending := m.pendingJobs[filename]; !pending {
+				delete(m.failedJobs, filename)
+				filePath := m.lib.FilePath(topicName, filename)
+				return m, transcribeUploadCmd(m.transcriber, topicName, filename, filePath)
+			}
 		}
 	case "i":
 		if m.lib != nil && m.cursor < len(rows) && !rows[m.cursor].isTopic {
@@ -1190,6 +1298,7 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 				m.topics[i].files = msg.files
 				m.topics[i].displayNames = msg.displayNames
 				m.topics[i].durations = msg.durations
+				m.topics[i].transcripts = msg.transcripts
 				m.topics[i].loaded = true
 				break
 			}
@@ -1338,6 +1447,45 @@ func (m libraryModel) update(msg tea.Msg) (libraryModel, tea.Cmd) {
 			m.status = fmt.Sprintf("Playback error: %v", msg.err)
 		}
 
+	case transcribeUploadedMsg:
+		if msg.err != nil {
+			slog.Warn("tab1: transcribeUpload error", "filename", msg.filename, "err", msg.err)
+			m.failedJobs[msg.filename] = true
+			delete(m.pendingJobs, msg.filename)
+			return m, nil
+		}
+		m.pendingJobs[msg.filename] = msg.jobID
+		return m, transcribePollCmd(m.transcriber, msg.topicName, msg.filename, msg.filePath, msg.jobID)
+
+	case transcribePollMsg:
+		if msg.err != nil {
+			slog.Warn("tab1: transcribePoll error", "filename", msg.filename, "err", msg.err)
+			m.failedJobs[msg.filename] = true
+			delete(m.pendingJobs, msg.filename)
+			return m, nil
+		}
+		if !msg.done {
+			return m, transcribePollCmd(m.transcriber, msg.topicName, msg.filename, msg.filePath, msg.jobID)
+		}
+		return m, transcriptWriteCmd(m.lib, msg.topicName, msg.filename, msg.transcript)
+
+	case transcriptWrittenMsg:
+		delete(m.pendingJobs, msg.filename)
+		if msg.err != nil {
+			slog.Warn("tab1: transcriptWrite error", "filename", msg.filename, "err", msg.err)
+			m.failedJobs[msg.filename] = true
+			return m, nil
+		}
+		for i := range m.topics {
+			if m.topics[i].name == msg.topicName {
+				if m.topics[i].transcripts == nil {
+					m.topics[i].transcripts = make(map[string]bool)
+				}
+				m.topics[i].transcripts[msg.filename] = true
+				break
+			}
+		}
+
 	case tea.KeyMsg:
 		if m.dialog.active {
 			return m.handleDialogKey(msg)
@@ -1391,6 +1539,22 @@ func (m libraryModel) view() string {
 			prefix := "  "
 			availWidth := m.width - 5 - lipgloss.Width(prefix)
 			durStr := formatDuration(m.topics[row.topicIdx].durations[f])
+			// Transcript badge: [T] done, [~] pending, [E] error.
+			badge := ""
+			if m.topics[row.topicIdx].transcripts[f] {
+				badge = "[T]"
+			} else if _, ok := m.pendingJobs[f]; ok {
+				badge = "[~]"
+			} else if m.failedJobs[f] {
+				badge = "[E]"
+			}
+			if badge != "" {
+				if durStr != "" {
+					durStr = badge + " " + durStr
+				} else {
+					durStr = badge
+				}
+			}
 			if i == m.cursor {
 				label := formatLabelAligned(f, m.topics[row.topicIdx].displayNames[f], availWidth, durStr)
 				line = prefix + label
@@ -2576,10 +2740,10 @@ type rootModel struct {
 	ffmpegAvail bool
 }
 
-func newRootModel(lib *storage.Library, ch <-chan []importer.Entry, stateCh <-chan importer.State, ffmpegAvail bool) rootModel {
+func newRootModel(lib *storage.Library, ch <-chan []importer.Entry, stateCh <-chan importer.State, ffmpegAvail bool, tc *transcriber.Client) rootModel {
 	return rootModel{
 		active:      tabLibrary,
-		library:     newLibraryModel(lib),
+		library:     newLibraryModel(lib, tc),
 		imports:     newImportModel(lib, ch, stateCh),
 		ignored:     newIgnoredModel(lib),
 		ffmpegAvail: ffmpegAvail,
@@ -2741,6 +2905,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.library.status = fmt.Sprintf("Converted %d WAV file(s) to MP3", msg.count)
 		}
 		return m, nil
+	case transcribeUploadedMsg, transcribePollMsg, transcriptWrittenMsg:
+		lib, cmd := m.library.update(msg)
+		m.library = lib
+		return m, cmd
 	}
 	// data messages (async loads, entries) reach all sub-models
 	lib, c1 := m.library.update(msg)
@@ -2887,6 +3055,7 @@ func (m rootModel) helpLines() []string {
 			"  r             change description",
 			"  n             new topic",
 			"  R             rename topic",
+			"  t             start transcription",
 		}
 	case tabImport:
 		specific = []string{
